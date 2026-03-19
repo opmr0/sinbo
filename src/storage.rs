@@ -1,12 +1,12 @@
-use std::fs;
+use std::{fs};
 use std::path::PathBuf;
 use serde::{Serialize, Deserialize};
+use anyhow::{Context, Result, anyhow};
 
 #[derive(Serialize, Deserialize)]
 pub struct SnippetMeta {
-    pub tags: Vec<String>,
-    pub lang: Option<String>,
-    pub created_at: String,
+    pub tags: Vec<String>,    
+    pub modified_at: u64,
 }
 
 pub struct Snippet {
@@ -36,65 +36,62 @@ impl Storage {
         self.base_path.join(format!("{}.code", name)).exists()
     }
 
-    pub fn save(&self, name: &str, content: &str, meta: SnippetMeta) -> Result<(), String> {
-        if self.exists(name) {
-            return Err(format!("snippet '{}' already exists", name));
-        }
+    pub fn save(&self, name: &str, content: &str, meta: SnippetMeta) -> Result<()> {
 
         fs::write(
             self.base_path.join(format!("{}.code", name)),
             content
-        ).map_err(|e| e.to_string())?;
+        ).context("{e}")?;
 
         let meta_json = serde_json::to_string_pretty(&meta)
-            .map_err(|e| e.to_string())?;
+            .context("{e}")?;
 
         fs::write(
             self.base_path.join(format!("{}.meta.json", name)),
             meta_json
-        ).map_err(|e| e.to_string())?;
+        ).context("{e}")?;
 
         Ok(())
     }
 
-    pub fn get(&self, name: &str) -> Result<Snippet, String> {
+    pub fn get(&self, name: &str) -> Result<Snippet> {
         if !self.exists(name) {
-            return Err(format!("snippet '{}' not found", name));
+            return Err(anyhow!("snippet '{}' not found", name));
         }
 
         let content = fs::read_to_string(
             self.base_path.join(format!("{}.code", name))
-        ).map_err(|e| e.to_string())?;
+        ).context("{e}")?;
 
         let meta_str = fs::read_to_string(
             self.base_path.join(format!("{}.meta.json", name))
-        ).map_err(|e| e.to_string())?;
+        ).context("{e}")?;
 
         let meta: SnippetMeta = serde_json::from_str(&meta_str)
-            .map_err(|e| e.to_string())?;
+            .context("{e}")?;
 
         Ok(Snippet { name: name.to_string(), content, meta })
     }
 
-    pub fn remove(&self, name: &str) -> Result<(), String> {
+    pub fn remove(&self, name: &str) -> Result<()> {
         if !self.exists(name) {
-            return Err(format!("snippet '{}' not found", name));
+            return Err(anyhow!("snippet '{}' not found", name));
         }
 
         fs::remove_file(self.base_path.join(format!("{}.code", name)))
-            .map_err(|e| e.to_string())?;
+            .context("{e}")?;
 
         fs::remove_file(self.base_path.join(format!("{}.meta.json", name)))
-            .map_err(|e| e.to_string())?;
+            .context("{e}")?;
 
         Ok(())
     }
 
-    pub fn list(&self, tag_filter: Option<&Vec<String>>) -> Result<Vec<Snippet>, String> {
+    pub fn list(&self, tag_filter: Option<&Vec<String>>) -> Result<Vec<Snippet>> {
         let mut snippets = vec![];
 
-        for entry in fs::read_dir(&self.base_path).map_err(|e| e.to_string())? {
-            let entry = entry.map_err(|e| e.to_string())?;
+        for entry in fs::read_dir(&self.base_path).context("{e}")? {
+            let entry = entry.context("{e}")?;
             let path = entry.path();
 
             if path.extension().and_then(|e| e.to_str()) != Some("code") {
