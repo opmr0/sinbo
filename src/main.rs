@@ -22,13 +22,13 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Action {
-    #[command(about = "Print or copy a snippet", alias="g")]
+    #[command(about = "Print or copy a snippet", alias = "g")]
     Get {
         name: String,
         #[arg(short, long, help = "Copy to clipboard instead of printing")]
         copy: bool,
     },
-    #[command(about = "Add a new snippet" ,alias="a")]
+    #[command(about = "Add a new snippet", alias = "a")]
     Add {
         name: String,
         #[arg(long, short, num_args = 1, help = "Read content from a file")]
@@ -43,16 +43,16 @@ enum Action {
         )]
         ext: Option<String>,
     },
-    #[command(about = "List all snippets",alias="l")]
+    #[command(about = "List all snippets", alias = "l")]
     List {
         #[arg(short, long, num_args = 1.., help = "Filter by tags")]
         tags: Option<Vec<String>>,
         #[arg(short, long, help = "Show the snippets content")]
         show: bool,
     },
-    #[command(about = "Remove a snippet",alias="r")]
+    #[command(about = "Remove a snippet", alias = "r")]
     Remove { name: String },
-    #[command(about = "Edit an existing snippet",alias="e")]
+    #[command(about = "Edit an existing snippet", alias = "e")]
     Edit {
         name: String,
         #[arg(short, long, num_args = 1.., help = "Update tags")]
