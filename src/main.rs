@@ -6,15 +6,15 @@ use std::{
 
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
+use colored::Colorize;
 
 mod storage;
-use atty;
-
-use storage::Storage;
 
 use crate::storage::SnippetMeta;
+use storage::Storage;
 
 #[derive(Parser)]
+#[clap(version, name = "sinbo", about = "A CLI snippet manager")]
 struct Cli {
     #[clap(subcommand)]
     action: Action,
@@ -22,139 +22,211 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Action {
+    #[command(about = "Print or copy a snippet", alias="g")]
     Get {
         name: String,
-        #[arg(short, long)]
+        #[arg(short, long, help = "Copy to clipboard instead of printing")]
         copy: bool,
     },
+    #[command(about = "Add a new snippet" ,alias="a")]
     Add {
         name: String,
-        #[arg(long, short, num_args = 1)]
+        #[arg(long, short, num_args = 1, help = "Read content from a file")]
         file_name: Option<String>,
-        #[arg(short, long, num_args = 1..)]
+        #[arg(short, long, num_args = 1.., help = "Tags for the snippet")]
         tags: Option<Vec<String>>,
+        #[arg(
+            short,
+            long,
+            num_args = 1,
+            help = "File extension for syntax highlighting in editor"
+        )]
+        ext: Option<String>,
     },
+    #[command(about = "List all snippets",alias="l")]
     List {
-        #[arg(short, long, num_args = 1..)]
+        #[arg(short, long, num_args = 1.., help = "Filter by tags")]
         tags: Option<Vec<String>>,
+        #[arg(short, long, help = "Show the snippets content")]
+        show: bool,
     },
-    Remove {
-        name: String,
-    },
+    #[command(about = "Remove a snippet",alias="r")]
+    Remove { name: String },
+    #[command(about = "Edit an existing snippet",alias="e")]
     Edit {
         name: String,
-        #[arg(short, long, num_args = 1..)]
+        #[arg(short, long, num_args = 1.., help = "Update tags")]
         tags: Option<Vec<String>>,
     },
 }
 
-#[allow(unused)]
+fn open_editor(initial_content: Option<&str>, ext: Option<&str>) -> Result<String> {
+    let editor = env::var("EDITOR").unwrap_or_else(|_| {
+        if cfg!(windows) {
+            "notepad".to_string()
+        } else {
+            "nano".to_string()
+        }
+    });
+
+    let file_name = match ext {
+        Some(e) => format!("sinbo_snippet.{}", e),
+        None => "sinbo_snippet.tmp".to_string(),
+    };
+
+    let tmp = env::temp_dir().join(file_name);
+
+    if let Some(content) = initial_content {
+        fs::write(&tmp, content)?;
+    }
+
+    #[cfg(windows)]
+    Command::new("cmd")
+        .arg("/c")
+        .args([&editor, tmp.to_str().unwrap()])
+        .status()
+        .context("failed to open editor")?;
+
+    #[cfg(not(windows))]
+    Command::new(&editor)
+        .arg(&tmp)
+        .status()
+        .context("failed to open editor")?;
+
+    let content = fs::read_to_string(&tmp).context("failed to read temp file")?;
+    fs::remove_file(&tmp).ok();
+
+    Ok(content)
+}
+
 fn main() -> Result<()> {
     let args = Cli::parse();
     let storage = Storage::new();
 
     match args.action {
-        Action::Get { name, copy } => {}
+        Action::Get { name, copy } => {
+            let snippet = storage.get(&name)?;
+            if copy {
+                let mut clipboard = arboard::Clipboard::new()?;
+                clipboard.set_text(&snippet.content)?;
+                eprintln!(
+                    "{} copied '{}' to clipboard",
+                    "sinbo".cyan().bold(),
+                    name.yellow()
+                );
+            } else {
+                print!("{}", snippet.content);
+            }
+        }
+
         Action::Add {
             name,
             file_name,
             tags,
+            ext,
         } => {
-            let mut content = String::new();
-
             if storage.exists(&name) {
                 return Err(anyhow!("snippet '{}' already exists", name));
             }
 
-            if let Some(file_name) = file_name {
-                content = fs::read_to_string(file_name)?;
+            let content = if let Some(path) = file_name {
+                fs::read_to_string(&path).with_context(|| format!("failed to read '{}'", path))?
             } else if atty::is(atty::Stream::Stdin) {
-                let editor = env::var("EDITOR").unwrap_or("nano".to_string());
-                let tmp = env::temp_dir().join("sinbo_snippet.tmp");
-
-                #[cfg(windows)]
-                Command::new("cmd")
-                    .arg("/c")
-                    .args([&editor, tmp.to_str().unwrap()])
-                    .status()
-                    .context("failed to open editor")?;
-
-                #[cfg(not(windows))]
-                Command::new(editor)
-                    .arg(&tmp)
-                    .status()
-                    .context("failed to open editor")?;
-
-                content = fs::read_to_string(&tmp).context("failed to read temp file")?;
-                fs::remove_file(&tmp).ok();
+                open_editor(None, ext.as_deref())?
             } else {
+                let mut buf = String::new();
                 io::stdin()
-                    .read_to_string(&mut content)
+                    .read_to_string(&mut buf)
                     .context("failed to read stdin")?;
+                buf
+            };
+
+            if content.trim().is_empty() {
+                return Err(anyhow!("snippet content is empty"));
             }
 
             let meta = SnippetMeta {
-                modified_at: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs(),
+                modified_at: now_secs(),
                 tags: tags.unwrap_or_default(),
+                ext,
             };
 
             storage.save(&name, &content, meta)?;
+            eprintln!("{} saved '{}'", "sinbo".cyan().bold(), name.yellow());
         }
-        Action::List { tags } => {
+
+        Action::List { tags, show } => {
             let snippets = storage.list(tags.as_ref())?;
-            for s in snippets {
-                println!("{} --- {:?}", s.name, s.meta.tags);
-                println!("{}", s.content);
+
+            if snippets.is_empty() {
+                eprintln!("{} no snippets found", "sinbo".cyan().bold());
+                return Ok(());
+            }
+
+            eprintln!("{} {} snippets\n", "sinbo".cyan().bold(), snippets.len());
+
+            for s in &snippets {
+                let tags_str = if s.meta.tags.is_empty() {
+                    String::new()
+                } else {
+                    format!(" [{}]", s.meta.tags.join(", ").dimmed())
+                };
+
+                let ext_str = s
+                    .meta
+                    .ext
+                    .as_deref()
+                    .map(|e| format!(" .{}", e.bright_black()))
+                    .unwrap_or_default();
+
+                println!("{}{}{}", s.name.cyan().bold(), tags_str, ext_str);
+                if show {
+                    println!("> {}", s.content.dimmed())
+                }
             }
         }
+
         Action::Remove { name } => {
             storage.remove(&name)?;
-            println!("removed '{}'", name);
+            eprintln!("{} removed '{}'", "sinbo".cyan().bold(), name.yellow());
         }
+
         Action::Edit { name, tags } => {
-            let mut content = String::new();
+            let snippet = storage
+                .get(&name)
+                .with_context(|| format!("snippet '{}' not found", name))?;
 
-            let snippet = storage.get(&name).context("snippet '{name}' not found")?;
-
-            if atty::is(atty::Stream::Stdin) {
-                let editor = env::var("EDITOR").unwrap_or("nano".to_string());
-                let tmp = env::temp_dir().join("sinbo_snippet.tmp");
-                fs::write(&tmp, snippet.content)?;
-
-                #[cfg(windows)]
-                Command::new("cmd")
-                    .arg("/c")
-                    .args([&editor, tmp.to_str().unwrap()])
-                    .status()
-                    .context("failed to open editor")?;
-
-                #[cfg(not(windows))]
-                Command::new(editor)
-                    .arg(&tmp)
-                    .status()
-                    .context("failed to open editor")?;
-
-                content = fs::read_to_string(&tmp).context("failed to read temp file")?;
-                fs::remove_file(&tmp).ok();
+            let content = if atty::is(atty::Stream::Stdin) {
+                open_editor(Some(&snippet.content), snippet.meta.ext.as_deref())?
             } else {
+                let mut buf = String::new();
                 io::stdin()
-                    .read_to_string(&mut content)
+                    .read_to_string(&mut buf)
                     .context("failed to read stdin")?;
+                buf
+            };
+
+            if content.trim().is_empty() {
+                return Err(anyhow!("snippet content is empty"));
             }
 
             let meta = SnippetMeta {
-                modified_at: std::time::SystemTime::now()
-                    .duration_since(std::time::UNIX_EPOCH)
-                    .unwrap()
-                    .as_secs(),
-                tags: tags.unwrap_or_default(),
+                modified_at: now_secs(),
+                tags: tags.unwrap_or(snippet.meta.tags),
+                ext: snippet.meta.ext,
             };
 
             storage.save(&name, &content, meta)?;
+            eprintln!("{} updated '{}'", "sinbo".cyan().bold(), name.yellow());
         }
     }
+
     Ok(())
+}
+
+fn now_secs() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
 }
