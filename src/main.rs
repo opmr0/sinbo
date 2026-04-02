@@ -7,6 +7,8 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use fuzzy_matcher::FuzzyMatcher;
+use fuzzy_matcher::skim::SkimMatcherV2;
 
 mod storage;
 
@@ -57,6 +59,12 @@ enum Action {
         name: String,
         #[arg(short, long, num_args = 1.., help = "Update tags")]
         tags: Option<Vec<String>>,
+    },
+    #[command(about = "Search a query in snippets", alias = "s")]
+    Search {
+        #[arg(short, long, num_args = 1.., help = "search in tags")]
+        tags: Option<Vec<String>>,
+        query: String,
     },
 }
 
@@ -118,7 +126,6 @@ fn main() -> Result<()> {
                 print!("{}", snippet.content);
             }
         }
-
         Action::Add {
             name,
             file_name,
@@ -154,7 +161,6 @@ fn main() -> Result<()> {
             storage.save(&name, &content, meta)?;
             eprintln!("{} saved '{}'", "sinbo".cyan().bold(), name.yellow());
         }
-
         Action::List { tags, show } => {
             let snippets = storage.list(tags.as_ref())?;
 
@@ -185,12 +191,10 @@ fn main() -> Result<()> {
                 }
             }
         }
-
         Action::Remove { name } => {
             storage.remove(&name)?;
             eprintln!("{} removed '{}'", "sinbo".cyan().bold(), name.yellow());
         }
-
         Action::Edit { name, tags } => {
             let snippet = storage
                 .get(&name)
@@ -218,6 +222,57 @@ fn main() -> Result<()> {
 
             storage.save(&name, &content, meta)?;
             eprintln!("{} updated '{}'", "sinbo".cyan().bold(), name.yellow());
+        }
+        Action::Search { query, tags } => {
+            let all_snippets = storage.list(tags.as_ref())?;
+            let matcher = SkimMatcherV2::default().ignore_case();
+            let query_lower = query.to_lowercase();
+
+            let mut results: Vec<(i64, &_)> = all_snippets
+                .iter()
+                .filter_map(|s| {
+                    let name_score = matcher.fuzzy_match(&s.name, &query);
+                    let content_match = s
+                        .content
+                        .lines()
+                        .any(|l| l.to_lowercase().contains(&query_lower));
+                    match (name_score, content_match) {
+                        (Some(score), _) => Some((score, s)),
+                        (None, true) => Some((0, s)),
+                        _ => None,
+                    }
+                })
+                .collect();
+
+            results.sort_by(|a, b| b.0.cmp(&a.0));
+
+            if results.is_empty() {
+                eprintln!("{} no matches found", "sinbo".cyan().bold());
+            } else {
+                eprintln!("{} {} results\n", "sinbo".cyan().bold(), results.len());
+                for s in results {
+                    let tags_str = if s.1.meta.tags.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" [{}]", s.1.meta.tags.join(", ").dimmed())
+                    };
+                    let ext_str = s
+                        .1.meta
+                        .ext
+                        .as_deref()
+                        .map(|e| format!(" .{}", e.bright_black()))
+                        .unwrap_or_default();
+
+                    println!("{}{}{}", s.1.name.cyan().bold(), tags_str, ext_str);
+
+                    for line in s.1.content.lines() {
+                        if line.to_lowercase().contains(&query_lower) {
+                            println!("  {} {}", ">".yellow().bold(), line.dimmed());
+                        }
+                    }
+                    println!();
+                }
+            }
         }
     }
 

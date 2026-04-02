@@ -12,8 +12,6 @@
 
 **sinbo is a CLI snippet manager. Store code once, retrieve it anywhere.**
 
-</div>
-
 ---
 
 ## Installation
@@ -44,6 +42,7 @@ cargo install sinbo
 sinbo add rust-test -e rs        # opens your editor, saves as a Rust snippet
 sinbo get rust-test              # prints the snippet
 sinbo get rust-test --copy       # copies to clipboard
+sinbo search "hello"             # fuzzy search across all snippets
 ```
 
 ---
@@ -63,7 +62,9 @@ export EDITOR="pycharm --wait"         # PyCharm
 export EDITOR="subl --wait"            # Sublime Text
 ```
 
-The temp file uses the `--ext` flag for syntax highlighting `sinbo add my-snippet -e rs` opens the editor with a `.rs` file so your editor formats the language syntax correctly.
+The temp file uses the `--ext` flag for syntax highlighting. `sinbo add my-snippet -e rs` opens the editor with a `.rs` file so your editor formats the language syntax correctly.
+
+---
 
 ## Commands
 
@@ -95,9 +96,9 @@ sinbo get rust-test          # print to stdout
 sinbo get rust-test --copy   # copy to clipboard
 ```
 
-| Flag     | Short | Description       |
-| -------- | ----- | ----------------- |
-| `--copy` | `-c`  | Copy to clipboard |
+| Flag     | Short | Description                   |
+| -------- | ----- | ----------------------------- |
+| `--copy` | `-c`  | Copy to clipboard             |
 
 ---
 
@@ -108,12 +109,30 @@ List all saved snippets.
 ```bash
 sinbo list              # list all
 sinbo list -t docker    # filter by tag
+sinbo list -s           # show snippet content
 ```
 
-| Flag     | Short | Description               |
-| -------- | ----- | ------------------------- |
-| `--tags` | `-t`  | Filter by tags            |
-| `--show` | `-s`  | SHow the snippets content |
+| Flag     | Short | Description            |
+| -------- | ----- | ---------------------- |
+| `--tags` | `-t`  | Filter by tags         |
+| `--show` | `-s`  | Show snippet content   |
+
+---
+
+### `sinbo search <query>`
+
+Fuzzy search across snippet names and content. Results are ranked by relevance. Optionally scope the search to a tag.
+
+```bash
+sinbo search "docker run"          # search all snippets
+sinbo search "deploy" -t infra     # search within a tag
+```
+
+| Flag     | Short | Description                        |
+| -------- | ----- | ---------------------------------- |
+| `--tags` | `-t`  | Scope search to snippets with tag  |
+
+Matching content lines are shown inline under each result.
 
 ---
 
@@ -145,7 +164,8 @@ Tags let you group and filter snippets:
 ```bash
 sinbo add nginx-conf -t infra server
 sinbo add k8s-deploy -t infra k8s
-sinbo list -t infra   # shows both
+sinbo list -t infra            # shows both
+sinbo search "deploy" -t infra # search within infra tag
 ```
 
 ---
