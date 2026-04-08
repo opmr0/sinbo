@@ -15,6 +15,7 @@ pub struct Snippet {
     pub name: String,
     pub content: String,
     pub meta: SnippetMeta,
+    pub encrypted: bool,
 }
 
 pub struct Storage {
@@ -33,15 +34,30 @@ impl Storage {
         Self { base_path }
     }
 
+    pub fn snippet_path(&self, name: &str) -> PathBuf {
+        self.base_path.join(name)
+    }
+
     pub fn exists(&self, name: &str) -> bool {
         self.base_path.join(format!("{}.code", name)).exists()
+            || self.base_path.join(format!("{}.enc", name)).exists()
+    }
+
+    pub fn is_encrypted(&self, name: &str) -> bool {
+        self.base_path.join(format!("{}.enc", name)).exists()
     }
 
     pub fn save(&self, name: &str, content: &str, meta: SnippetMeta) -> Result<()> {
         fs::write(self.base_path.join(format!("{}.code", name)), content)
             .with_context(|| format!("failed to write content for '{}'", name))?;
 
-        let meta_json = serde_json::to_string_pretty(&meta)
+        self.save_meta(name, &meta)?;
+
+        Ok(())
+    }
+
+    pub fn save_meta(&self, name: &str, meta: &SnippetMeta) -> Result<()> {
+        let meta_json = serde_json::to_string_pretty(meta)
             .with_context(|| format!("failed to serialize metadata for '{}'", name))?;
 
         fs::write(
@@ -53,24 +69,39 @@ impl Storage {
         Ok(())
     }
 
+    fn read_meta(&self, name: &str) -> Result<SnippetMeta> {
+        let meta_str = fs::read_to_string(self.base_path.join(format!("{}.meta.json", name)))
+            .with_context(|| format!("failed to read metadata for '{}'", name))?;
+
+        serde_json::from_str(&meta_str)
+            .with_context(|| format!("failed to parse metadata for '{}'", name))
+    }
+
     pub fn get(&self, name: &str) -> Result<Snippet> {
         if !self.exists(name) {
             return Err(anyhow!("snippet '{}' not found", name));
         }
 
+        if self.is_encrypted(name) {
+            let meta = self.read_meta(name)?;
+            return Ok(Snippet {
+                name: name.to_string(),
+                content: String::new(),
+                meta,
+                encrypted: true,
+            });
+        }
+
         let content = fs::read_to_string(self.base_path.join(format!("{}.code", name)))
             .with_context(|| format!("failed to read content for '{}'", name))?;
 
-        let meta_str = fs::read_to_string(self.base_path.join(format!("{}.meta.json", name)))
-            .with_context(|| format!("failed to read metadata for '{}'", name))?;
-
-        let meta: SnippetMeta = serde_json::from_str(&meta_str)
-            .with_context(|| format!("failed to parse metadata for '{}'", name))?;
+        let meta = self.read_meta(name)?;
 
         Ok(Snippet {
             name: name.to_string(),
             content,
             meta,
+            encrypted: false,
         })
     }
 
@@ -79,8 +110,17 @@ impl Storage {
             return Err(anyhow!("snippet '{}' not found", name));
         }
 
-        fs::remove_file(self.base_path.join(format!("{}.code", name)))
-            .with_context(|| format!("failed to remove content for '{}'", name))?;
+        let code_path = self.base_path.join(format!("{}.code", name));
+        let enc_path = self.base_path.join(format!("{}.enc", name));
+
+        if code_path.exists() {
+            fs::remove_file(&code_path)
+                .with_context(|| format!("failed to remove content for '{}'", name))?;
+        }
+        if enc_path.exists() {
+            fs::remove_file(&enc_path)
+                .with_context(|| format!("failed to remove encrypted content for '{}'", name))?;
+        }
 
         fs::remove_file(self.base_path.join(format!("{}.meta.json", name)))
             .with_context(|| format!("failed to remove metadata for '{}'", name))?;
@@ -90,20 +130,32 @@ impl Storage {
 
     pub fn list(&self, tag_filter: Option<&Vec<String>>) -> Result<Vec<Snippet>> {
         let mut snippets = vec![];
+        let mut seen = std::collections::HashSet::new();
 
         for entry in fs::read_dir(&self.base_path).context("failed to read snippets directory")? {
             let entry = entry.context("failed to read directory entry")?;
             let path = entry.path();
 
-            if path.extension().and_then(|e| e.to_str()) != Some("code") {
+            let ext = path.extension().and_then(|e| e.to_str());
+
+            let name = match ext {
+                Some("code") => path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .to_string(),
+                Some("enc") => path
+                    .file_stem()
+                    .and_then(|s| s.to_str())
+                    .unwrap_or("")
+                    .to_string(),
+                _ => continue,
+            };
+
+            if name.is_empty() || seen.contains(&name) {
                 continue;
             }
-
-            let name = path
-                .file_stem()
-                .and_then(|s| s.to_str())
-                .unwrap_or("")
-                .to_string();
+            seen.insert(name.clone());
 
             let snippet = self.get(&name)?;
 

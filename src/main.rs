@@ -10,6 +10,7 @@ use colored::Colorize;
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 
+mod encryption;
 mod storage;
 
 use crate::storage::SnippetMeta;
@@ -44,6 +45,8 @@ enum Action {
             help = "File extension for syntax highlighting in editor"
         )]
         ext: Option<String>,
+        #[arg(long, help = "Encrypt the snippet (prompted for password)")]
+        encrypt: bool,
     },
     #[command(about = "List all snippets", alias = "l")]
     List {
@@ -68,7 +71,11 @@ enum Action {
     },
 }
 
-fn open_editor(initial_content: Option<&str>, ext: Option<&str>) -> Result<String> {
+fn open_editor(
+    initial_content: Option<&str>,
+    ext: Option<&str>,
+    sensitive: bool,
+) -> Result<String> {
     let editor = env::var("EDITOR").unwrap_or_else(|_| {
         if cfg!(windows) {
             "notepad".to_string()
@@ -102,7 +109,12 @@ fn open_editor(initial_content: Option<&str>, ext: Option<&str>) -> Result<Strin
         .context("failed to open editor")?;
 
     let content = fs::read_to_string(&tmp).context("failed to read temp file")?;
-    fs::remove_file(&tmp).ok();
+
+    if sensitive {
+        encryption::secure_delete(&tmp).ok();
+    } else {
+        fs::remove_file(&tmp).ok();
+    }
 
     Ok(content)
 }
@@ -114,16 +126,27 @@ fn main() -> Result<()> {
     match args.action {
         Action::Get { name, copy } => {
             let snippet = storage.get(&name)?;
+
+            let content = if snippet.encrypted {
+                let password = encryption::prompt_password("Password: ")?;
+                let enc_path = storage.snippet_path(&name).with_extension("enc");
+                let bytes = encryption::read_encrypted(&enc_path, password.as_bytes())
+                    .map_err(|e| anyhow!("{}", e))?;
+                String::from_utf8(bytes).context("decrypted content is not valid utf-8")?
+            } else {
+                snippet.content
+            };
+
             if copy {
                 let mut clipboard = arboard::Clipboard::new()?;
-                clipboard.set_text(&snippet.content)?;
+                clipboard.set_text(&content)?;
                 eprintln!(
                     "{} copied '{}' to clipboard",
                     "sinbo".cyan().bold(),
                     name.yellow()
                 );
             } else {
-                print!("{}", snippet.content);
+                print!("{}", content);
             }
         }
         Action::Add {
@@ -131,6 +154,7 @@ fn main() -> Result<()> {
             file_name,
             tags,
             ext,
+            encrypt,
         } => {
             if storage.exists(&name) {
                 return Err(anyhow!("snippet '{}' already exists", name));
@@ -139,7 +163,7 @@ fn main() -> Result<()> {
             let content = if let Some(path) = file_name {
                 fs::read_to_string(&path).with_context(|| format!("failed to read '{}'", path))?
             } else if atty::is(atty::Stream::Stdin) {
-                open_editor(None, ext.as_deref())?
+                open_editor(None, ext.as_deref(), encrypt)?
             } else {
                 let mut buf = String::new();
                 io::stdin()
@@ -157,6 +181,21 @@ fn main() -> Result<()> {
                 tags: tags.unwrap_or_default(),
                 ext,
             };
+
+            if encrypt {
+                let password = encryption::prompt_password_confirmed()?;
+                let enc_path = storage.snippet_path(&name).with_extension("enc");
+                encryption::write_encrypted(&enc_path, content.as_bytes(), password.as_bytes())
+                    .map_err(|e| anyhow!("{}", e))?;
+                storage.save_meta(&name, &meta)?;
+                eprintln!(
+                    "{} saved '{}' {}",
+                    "sinbo".cyan().bold(),
+                    name.yellow(),
+                    "(encrypted)".dimmed()
+                );
+                return Ok(());
+            }
 
             storage.save(&name, &content, meta)?;
             eprintln!("{} saved '{}'", "sinbo".cyan().bold(), name.yellow());
@@ -185,9 +224,20 @@ fn main() -> Result<()> {
                     .map(|e| format!(" .{}", e.bright_black()))
                     .unwrap_or_default();
 
-                println!("{}{}{}", s.name.cyan().bold(), tags_str, ext_str);
+                let enc_str = if s.encrypted {
+                    format!(" {}", "Locked".yellow().dimmed())
+                } else {
+                    String::new()
+                };
+
+                println!("{}{}{}{}", s.name.cyan().bold(), tags_str, ext_str, enc_str);
+
                 if show {
-                    println!("> {}", s.content.dimmed())
+                    if s.encrypted {
+                        println!("> {}", "[encrypted]".dimmed());
+                    } else {
+                        println!("> {}", s.content.dimmed());
+                    }
                 }
             }
         }
@@ -200,8 +250,15 @@ fn main() -> Result<()> {
                 .get(&name)
                 .with_context(|| format!("snippet '{}' not found", name))?;
 
+            if snippet.encrypted {
+                return Err(anyhow!(
+                    "cannot edit encrypted snippet '{}', remove and re-add it",
+                    name
+                ));
+            }
+
             let content = if atty::is(atty::Stream::Stdin) {
-                open_editor(Some(&snippet.content), snippet.meta.ext.as_deref())?
+                open_editor(Some(&snippet.content), snippet.meta.ext.as_deref(), false)?
             } else {
                 let mut buf = String::new();
                 io::stdin()
@@ -232,10 +289,10 @@ fn main() -> Result<()> {
                 .iter()
                 .filter_map(|s| {
                     let name_score = matcher.fuzzy_match(&s.name, &query);
-                    let content_match = s
-                        .content
-                        .lines()
-                        .any(|l| l.to_lowercase().contains(&query_lower));
+                    let content_match = !s.encrypted
+                        && s.content
+                            .lines()
+                            .any(|l| l.to_lowercase().contains(&query_lower));
                     match (name_score, content_match) {
                         (Some(score), _) => Some((score, s)),
                         (None, true) => Some((0, s)),
@@ -256,18 +313,22 @@ fn main() -> Result<()> {
                     } else {
                         format!(" [{}]", s.1.meta.tags.join(", ").dimmed())
                     };
-                    let ext_str = s
-                        .1.meta
-                        .ext
-                        .as_deref()
-                        .map(|e| format!(" .{}", e.bright_black()))
-                        .unwrap_or_default();
+                    let ext_str =
+                        s.1.meta
+                            .ext
+                            .as_deref()
+                            .map(|e| format!(" .{}", e.bright_black()))
+                            .unwrap_or_default();
 
                     println!("{}{}{}", s.1.name.cyan().bold(), tags_str, ext_str);
 
-                    for line in s.1.content.lines() {
-                        if line.to_lowercase().contains(&query_lower) {
-                            println!("  {} {}", ">".yellow().bold(), line.dimmed());
+                    if s.1.encrypted {
+                        println!("  {} {}", ">".yellow().bold(), "[encrypted]".dimmed());
+                    } else {
+                        for line in s.1.content.lines() {
+                            if line.to_lowercase().contains(&query_lower) {
+                                println!("  {} {}", ">".yellow().bold(), line.dimmed());
+                            }
                         }
                     }
                     println!();

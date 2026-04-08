@@ -1,4 +1,4 @@
-<img src="./assets/logo_no_bg.png" alt="logo" width="100"/>
+<img src="./assets/logo_no_bg.png" alt="sinbo logo" width="100"/>
 
 <br>
 
@@ -39,9 +39,10 @@ cargo install sinbo
 ## Quick Start
 
 ```bash
-sinbo add rust-test -e rs        # opens your editor, saves as a Rust snippet
-sinbo get rust-test              # prints the snippet
-sinbo get rust-test --copy       # copies to clipboard
+sinbo add rust-test -e rs        # open editor, save as a Rust snippet
+sinbo get rust-test              # print the snippet
+sinbo get rust-test --copy       # copy to clipboard
+sinbo list                       # list all snippets
 sinbo search "hello"             # fuzzy search across all snippets
 ```
 
@@ -52,17 +53,16 @@ sinbo search "hello"             # fuzzy search across all snippets
 sinbo opens your `$EDITOR` when adding or editing snippets. Set it in your shell config:
 
 ```bash
-export EDITOR="vim"                    # Vim
-export EDITOR="nvim"                   # Neovim
-export EDITOR="nano"                   # Nano
-export EDITOR="hx"                     # Helix
-export EDITOR="code --wait"            # VSCode (--wait is required)
-export EDITOR="idea --wait"            # IntelliJ
-export EDITOR="pycharm --wait"         # PyCharm
-export EDITOR="subl --wait"            # Sublime Text
+export EDITOR="vim"           # Vim
+export EDITOR="nvim"          # Neovim
+export EDITOR="nano"          # Nano
+export EDITOR="hx"            # Helix
+export EDITOR="code --wait"   # VSCode   (--wait is required)
+export EDITOR="idea --wait"   # IntelliJ (--wait is required)
+export EDITOR="subl --wait"   # Sublime  (--wait is required)
 ```
 
-The temp file uses the `--ext` flag for syntax highlighting. `sinbo add my-snippet -e rs` opens the editor with a `.rs` file so your editor formats the language syntax correctly.
+> The `--ext` flag sets the temp file extension so your editor applies the right syntax highlighting. `sinbo add my-snippet -e rs` opens a `.rs` file.
 
 ---
 
@@ -70,12 +70,13 @@ The temp file uses the `--ext` flag for syntax highlighting. `sinbo add my-snipp
 
 ### `sinbo add <name>`
 
-Add a new snippet. Opens your `$EDITOR` if no input is piped.
+Add a new snippet. Opens `$EDITOR` if no input is piped.
 
 ```bash
-sinbo add rust-test -e rs                  # open editor with .rs extension
+sinbo add rust-test -e rs                  # open editor with .rs syntax
 sinbo add center-div -f style.css          # read from file
 sinbo add docker-run -t docker infra       # add with tags
+sinbo add api-key --encrypt                # encrypt with a password
 echo "hello world" | sinbo add greeting   # read from stdin
 ```
 
@@ -84,66 +85,70 @@ echo "hello world" | sinbo add greeting   # read from stdin
 | `--ext`       | `-e`  | File extension for syntax highlighting |
 | `--file-name` | `-f`  | Read content from a file               |
 | `--tags`      | `-t`  | Tag the snippet                        |
+| `--encrypt`   |       | Encrypt the snippet with a password    |
 
 ---
 
 ### `sinbo get <name>`
 
-Print or copy a snippet.
+Print or copy a snippet. Prompts for a password if the snippet is encrypted.
 
 ```bash
 sinbo get rust-test          # print to stdout
 sinbo get rust-test --copy   # copy to clipboard
+sinbo get api-key            # prompts for password if encrypted
 ```
 
-| Flag     | Short | Description                   |
-| -------- | ----- | ----------------------------- |
-| `--copy` | `-c`  | Copy to clipboard             |
+| Flag     | Short | Description       |
+| -------- | ----- | ----------------- |
+| `--copy` | `-c`  | Copy to clipboard |
 
 ---
 
 ### `sinbo list`
 
-List all saved snippets.
+List all saved snippets. Encrypted snippets are shown with a `Locked` indicator.
 
 ```bash
 sinbo list              # list all
 sinbo list -t docker    # filter by tag
-sinbo list -s           # show snippet content
+sinbo list -s           # show content (encrypted snippets show [encrypted])
 ```
 
-| Flag     | Short | Description            |
-| -------- | ----- | ---------------------- |
-| `--tags` | `-t`  | Filter by tags         |
-| `--show` | `-s`  | Show snippet content   |
+| Flag     | Short | Description          |
+| -------- | ----- | -------------------- |
+| `--tags` | `-t`  | Filter by tags       |
+| `--show` | `-s`  | Show snippet content |
 
 ---
 
 ### `sinbo search <query>`
 
-Fuzzy search across snippet names and content. Results are ranked by relevance. Optionally scope the search to a tag.
+Fuzzy search across snippet names and content. Results are ranked by relevance. Encrypted snippet content is not searched.
 
 ```bash
 sinbo search "docker run"          # search all snippets
 sinbo search "deploy" -t infra     # search within a tag
 ```
 
-| Flag     | Short | Description                        |
-| -------- | ----- | ---------------------------------- |
-| `--tags` | `-t`  | Scope search to snippets with tag  |
-
-Matching content lines are shown inline under each result.
+| Flag     | Short | Description                       |
+| -------- | ----- | --------------------------------- |
+| `--tags` | `-t`  | Scope search to snippets with tag |
 
 ---
 
 ### `sinbo edit <name>`
 
-Edit an existing snippet in your `$EDITOR`. Preserves the extension for syntax highlighting.
+Edit an existing snippet in `$EDITOR`. Preserves extension for syntax highlighting. Encrypted snippets cannot be edited, remove and re-add them.
 
 ```bash
 sinbo edit rust-test
 sinbo edit rust-test -t rust testing   # update tags while editing
 ```
+
+| Flag     | Short | Description  |
+| -------- | ----- | ------------ |
+| `--tags` | `-t`  | Update tags  |
 
 ---
 
@@ -164,19 +169,43 @@ Tags let you group and filter snippets:
 ```bash
 sinbo add nginx-conf -t infra server
 sinbo add k8s-deploy -t infra k8s
-sinbo list -t infra            # shows both
-sinbo search "deploy" -t infra # search within infra tag
+sinbo list -t infra             # shows both
+sinbo search "deploy" -t infra  # search within infra tag
 ```
+
+---
+
+## Encryption
+
+Sensitive snippets like API keys and tokens can be encrypted with `--encrypt`:
+
+```bash
+sinbo add github-token --encrypt   # prompts for a password twice
+sinbo get github-token             # prompts for the password to decrypt
+```
+
+Encryption uses AES-256-GCM with Argon2id key derivation. The plaintext never touches disk, only the encrypted `.enc` file is stored. Encrypted snippets are listed normally but their content is never shown or searched.
+
+> Encrypted snippets cannot be edited. Remove and re-add them if you need to update the content.
 
 ---
 
 ## How It Works
 
-- Snippets are stored as plain files in your system config directory
-- Each snippet has two files: `{name}.code` for content and `{name}.meta.json` for tags and metadata
-- On Linux/macOS: `~/.config/sinbo/snippets/`
-- On Windows: `%APPDATA%\sinbo\snippets\`
-- Files are plain text, you can grep, copy, or back them up directly
+Snippets are stored as plain files in your system config directory:
+
+- **Linux/macOS:** `~/.config/sinbo/snippets/`
+- **Windows:** `%APPDATA%\sinbo\snippets\`
+
+Each snippet has up to two files:
+
+| File                  | Contents                        |
+| --------------------- | ------------------------------- |
+| `{name}.code`         | Plaintext snippet content       |
+| `{name}.enc`          | Encrypted snippet content       |
+| `{name}.meta.json`    | Tags, extension, and timestamp  |
+
+Plain `.code` files are grep-able, copyable, and easy to back up directly.
 
 ---
 
