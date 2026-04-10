@@ -4,6 +4,17 @@ All notable changes to sinbo will be documented here.
 
 ---
 
+## 1.2.0 - 2026-04-10
+
+### Added
+
+- `sinbo encrypt <name>` — encrypt an existing plaintext snippet
+- `sinbo decrypt <name>` — permanently decrypt an encrypted snippet
+
+### Changed
+
+- Bumped Argon2id memory cost from 19MB to 32MB and time cost from 2 to 3
+
 ## 1.2.0-beta - 2026-04-08
 
 ### Added

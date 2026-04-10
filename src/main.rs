@@ -7,6 +7,7 @@ use std::{
 use anyhow::{Context, Result, anyhow};
 use clap::{Parser, Subcommand};
 use colored::Colorize;
+use dialoguer::Confirm;
 use fuzzy_matcher::FuzzyMatcher;
 use fuzzy_matcher::skim::SkimMatcherV2;
 
@@ -69,6 +70,21 @@ enum Action {
         tags: Option<Vec<String>>,
         query: String,
     },
+    #[command(about = "Encrypt an existing snippet")]
+    Encrypt { name: String },
+
+    #[command(about = "Decrypt a snippet permanently")]
+    Decrypt { name: String },
+}
+
+fn confirm() {
+    let confirmation = Confirm::new()
+        .with_prompt("Do you want to continue?")
+        .interact()
+        .unwrap();
+    if !confirmation {
+        std::process::exit(0)
+    }
 }
 
 fn open_editor(
@@ -182,6 +198,13 @@ fn main() -> Result<()> {
                 ext,
             };
 
+            if encrypt && !meta.tags.is_empty() {
+                eprintln!(
+                    "{} tags are stored in plaintext, avoid sensitive names",
+                    "Warning:".yellow().bold()
+                );
+            }
+
             if encrypt {
                 let password = encryption::prompt_password_confirmed()?;
                 let enc_path = storage.snippet_path(&name).with_extension("enc");
@@ -242,6 +265,8 @@ fn main() -> Result<()> {
             }
         }
         Action::Remove { name } => {
+            eprintln!("This command will remove '{}'", name);
+            confirm();
             storage.remove(&name)?;
             eprintln!("{} removed '{}'", "sinbo".cyan().bold(), name.yellow());
         }
@@ -334,6 +359,53 @@ fn main() -> Result<()> {
                     println!();
                 }
             }
+        }
+        Action::Encrypt { name } => {
+            let snippet = storage
+                .get(&name)
+                .with_context(|| format!("snippet '{}' not found", name))?;
+
+            eprintln!("This command will encrypt '{}'", name);
+            confirm();
+
+            let enc_path = storage.snippet_path(&name).with_extension("enc");
+
+            if enc_path.exists() {
+                return Err(anyhow!("snippet '{}' is already encrypted", name));
+            }
+
+            let password = encryption::prompt_password_confirmed()?;
+            encryption::write_encrypted(&enc_path, snippet.content.as_bytes(), password.as_bytes())
+                .map_err(|e| anyhow!("{}", e))?;
+
+            fs::remove_file(storage.snippet_path(&name).with_extension("code"))
+                .with_context(|| format!("failed to remove plaintext for '{}'", name))?;
+
+            eprintln!("{} encrypted '{}'", "sinbo".cyan().bold(), name.yellow());
+        }
+        Action::Decrypt { name } => {
+            let enc_path = storage.snippet_path(&name).with_extension("enc");
+
+            if !enc_path.exists() {
+                return Err(anyhow!("snippet '{}' is not encrypted", name));
+            }
+
+            eprintln!("This command will decrypt '{}'", name);
+            confirm();
+
+            let password = encryption::prompt_password("Password: ")?;
+            let bytes = encryption::read_encrypted(&enc_path, password.as_bytes())
+                .map_err(|e| anyhow!("{}", e))?;
+            let content =
+                String::from_utf8(bytes).context("decrypted content is not valid utf-8")?;
+
+            let meta = storage.get(&name)?.meta;
+            storage
+                .save(&name, &content, meta)
+                .with_context(|| format!("failed to save plaintext for '{}'", name))?;
+            encryption::secure_delete(&enc_path).map_err(|e| anyhow!("{}", e))?;
+
+            eprintln!("{} decrypted '{}'", "sinbo".cyan().bold(), name.yellow());
         }
     }
 

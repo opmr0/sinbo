@@ -2,7 +2,7 @@
 
 <br>
 
-# sinbo
+# Sinbo
 
 [![Crates.io](https://img.shields.io/crates/v/sinbo)](https://crates.io/crates/sinbo)
 [![Downloads](https://img.shields.io/crates/d/sinbo)](https://crates.io/crates/sinbo)
@@ -107,7 +107,7 @@ sinbo get api-key            # prompts for password if encrypted
 
 ### `sinbo list`
 
-List all saved snippets. Encrypted snippets are shown with a `Locked` indicator.
+List all saved snippets. Encrypted snippets are shown with a `locked` indicator.
 
 ```bash
 sinbo list              # list all
@@ -139,16 +139,16 @@ sinbo search "deploy" -t infra     # search within a tag
 
 ### `sinbo edit <name>`
 
-Edit an existing snippet in `$EDITOR`. Preserves extension for syntax highlighting. Encrypted snippets cannot be edited, remove and re-add them.
+Edit an existing snippet in `$EDITOR`. Preserves extension for syntax highlighting. Encrypted snippets cannot be edited , remove and re-add them.
 
 ```bash
 sinbo edit rust-test
 sinbo edit rust-test -t rust testing   # update tags while editing
 ```
 
-| Flag     | Short | Description  |
-| -------- | ----- | ------------ |
-| `--tags` | `-t`  | Update tags  |
+| Flag     | Short | Description |
+| -------- | ----- | ----------- |
+| `--tags` | `-t`  | Update tags |
 
 ---
 
@@ -188,6 +188,15 @@ Encryption uses AES-256-GCM with Argon2id key derivation. The plaintext never to
 
 > Encrypted snippets cannot be edited. Remove and re-add them if you need to update the content.
 
+> [!WARNING]
+> sinbo encryption is designed to protect against casual filesystem access.
+> It is not a substitute for a dedicated secrets manager like Bitwarden
+> for high-value credentials.
+
+> [!WARNING]
+> `.enc` files are binary, do NOT open or edit them in a text editor.
+> Any modification, including saving without changes, will corrupt the file.
+
 ---
 
 ## How It Works
@@ -199,11 +208,11 @@ Snippets are stored as plain files in your system config directory:
 
 Each snippet has up to two files:
 
-| File                  | Contents                        |
-| --------------------- | ------------------------------- |
-| `{name}.code`         | Plaintext snippet content       |
-| `{name}.enc`          | Encrypted snippet content       |
-| `{name}.meta.json`    | Tags, extension, and timestamp  |
+| File               | Contents                       |
+| ------------------ | ------------------------------ |
+| `{name}.code`      | Plaintext snippet content      |
+| `{name}.enc`       | Encrypted snippet content      |
+| `{name}.meta.json` | Tags, extension, and timestamp |
 
 Plain `.code` files are grep-able, copyable, and easy to back up directly.
 

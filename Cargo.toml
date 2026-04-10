@@ -1,6 +1,6 @@
 [package]
 name = "sinbo"
-version = "1.2.0-beta"
+version = "1.2.0"
 edition = "2024"
 description = "A CLI snippet manager. Store code once, retrieve it anywhere."
 license = "MIT"
@@ -25,3 +25,4 @@ rand = "0.8"
 rpassword = "7"
 zeroize = "1.8.2"
 clearscreen = "4.0.6"
+dialoguer = "0.12.0"

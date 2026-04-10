@@ -11,8 +11,8 @@ const SALT_LEN: usize = 16;
 const NONCE_LEN: usize = 12;
 const MIN_DATA_LEN: usize = SALT_LEN + NONCE_LEN + 16;
 
-const ARGON2_M_COST: u32 = 19456;
-const ARGON2_T_COST: u32 = 2;
+const ARGON2_M_COST: u32 = 32768;
+const ARGON2_T_COST: u32 = 3;
 const ARGON2_P_COST: u32 = 1;
 
 #[derive(Debug)]
