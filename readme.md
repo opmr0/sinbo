@@ -18,7 +18,6 @@
 
 ![demo](assets/demo.gif)
 
-
 ## Installation
 
 **macOS / Linux**
@@ -85,12 +84,13 @@ sinbo add api-key --encrypt                # encrypt with a password
 echo "hello world" | sinbo add greeting   # read from stdin
 ```
 
-| Flag          | Short | Description                            |
-| ------------- | ----- | -------------------------------------- |
-| `--ext`       | `-e`  | File extension for syntax highlighting |
-| `--file-name` | `-f`  | Read content from a file               |
-| `--tags`      | `-t`  | Tag the snippet                        |
-| `--encrypt`   |       | Encrypt the snippet with a password    |
+| Flag            | Short | Description                            |
+| --------------- | ----- | -------------------------------------- |
+| `--ext`         | `-e`  | File extension for syntax highlighting |
+| `--file-name`   | `-f`  | Read content from a file               |
+| `--tags`        | `-t`  | Tag the snippet                        |
+| `--description` | `-d`  | Add a description to the snippet       |
+| `--encrypt`     |       | Encrypt the snippet with a password    |
 
 ---
 
