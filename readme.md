@@ -14,6 +14,11 @@
 
 ---
 
+## demo
+
+![demo](assets/demo.gif)
+
+
 ## Installation
 
 **macOS / Linux**
@@ -139,7 +144,7 @@ sinbo search "deploy" -t infra     # search within a tag
 
 ### `sinbo edit <n>`
 
-Edit an existing snippet in `$EDITOR`. Preserves extension for syntax highlighting. Encrypted snippets cannot be edited — remove and re-add them.
+Edit an existing snippet in `$EDITOR`. Preserves extension for syntax highlighting. Encrypted snippets cannot be edited.
 
 ```bash
 sinbo edit rust-test

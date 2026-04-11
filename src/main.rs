@@ -1,6 +1,6 @@
 use std::{
     env, fs,
-    io::{self, Read},
+    io::{self, IsTerminal, Read},
     process::Command,
 };
 
@@ -48,6 +48,8 @@ enum Action {
         ext: Option<String>,
         #[arg(long, help = "Encrypt the snippet (prompted for password)")]
         encrypt: bool,
+        #[arg(long, short, num_args = 1, help = "Add a description to metadata")]
+        description: Option<String>,
     },
     #[command(about = "List all snippets", alias = "l")]
     List {
@@ -63,6 +65,8 @@ enum Action {
         name: String,
         #[arg(short, long, num_args = 1.., help = "Update tags")]
         tags: Option<Vec<String>>,
+        #[arg(long, short, num_args = 1, help = "Add a description to metadata")]
+        description: Option<String>,
     },
     #[command(about = "Search a query in snippets", alias = "s")]
     Search {
@@ -171,6 +175,7 @@ fn main() -> Result<()> {
             tags,
             ext,
             encrypt,
+            description,
         } => {
             if storage.exists(&name) {
                 return Err(anyhow!("snippet '{}' already exists", name));
@@ -178,7 +183,7 @@ fn main() -> Result<()> {
 
             let content = if let Some(path) = file_name {
                 fs::read_to_string(&path).with_context(|| format!("failed to read '{}'", path))?
-            } else if atty::is(atty::Stream::Stdin) {
+            } else if std::io::stdin().is_terminal() {
                 open_editor(None, ext.as_deref(), encrypt)?
             } else {
                 let mut buf = String::new();
@@ -193,14 +198,15 @@ fn main() -> Result<()> {
             }
 
             let meta = SnippetMeta {
+                description,
                 modified_at: now_secs(),
                 tags: tags.unwrap_or_default(),
                 ext,
             };
 
-            if encrypt && !meta.tags.is_empty() {
+            if encrypt && (!meta.tags.is_empty() || meta.description.is_some()) {
                 eprintln!(
-                    "{} tags are stored in plaintext, avoid sensitive names",
+                    "{} tags and description are stored in plaintext, avoid sensitive names",
                     "Warning:".yellow().bold()
                 );
             }
@@ -232,13 +238,13 @@ fn main() -> Result<()> {
             }
 
             eprintln!("{} {} snippets\n", "sinbo".cyan().bold(), snippets.len());
-
             for s in &snippets {
-                let tags_str = if s.meta.tags.is_empty() {
-                    String::new()
-                } else {
-                    format!(" [{}]", s.meta.tags.join(", ").dimmed())
-                };
+                let ext_raw = s
+                    .meta
+                    .ext
+                    .as_deref()
+                    .map(|e| format!(" .{e}"))
+                    .unwrap_or_default();
 
                 let ext_str = s
                     .meta
@@ -247,13 +253,44 @@ fn main() -> Result<()> {
                     .map(|e| format!(" .{}", e.bright_black()))
                     .unwrap_or_default();
 
-                let enc_str = if s.encrypted {
-                    format!(" {}", "Locked".yellow().dimmed())
-                } else {
+                let desc_str = s.meta.description.clone().unwrap_or_default();
+
+                let tags_raw = if s.meta.tags.is_empty() {
                     String::new()
+                } else {
+                    format!("[{}]", s.meta.tags.join(", "))
                 };
 
-                println!("{}{}{}{}", s.name.cyan().bold(), tags_str, ext_str, enc_str);
+                let tags_str = if s.meta.tags.is_empty() {
+                    String::new()
+                } else {
+                    format!("[{}]", s.meta.tags.join(", ").dimmed())
+                };
+
+                let name_ext_raw = format!("{}{}", s.name, ext_raw);
+                let pad = 20usize.saturating_sub(name_ext_raw.len());
+
+                let tags_pad = 30usize.saturating_sub(tags_raw.len());
+
+                let end = if s.encrypted {
+                    format!(
+                        "{} --- {}",
+                        "Locked".yellow().dimmed(),
+                        desc_str.bright_black().italic()
+                    )
+                } else {
+                    desc_str.bright_black().italic().to_string()
+                };
+
+                println!(
+                    "{}{}{}{}{}{}",
+                    s.name.cyan().bold(),
+                    ext_str,
+                    " ".repeat(pad),
+                    tags_str,
+                    " ".repeat(tags_pad),
+                    end
+                );
 
                 if show {
                     if s.encrypted {
@@ -270,7 +307,11 @@ fn main() -> Result<()> {
             storage.remove(&name)?;
             eprintln!("{} removed '{}'", "sinbo".cyan().bold(), name.yellow());
         }
-        Action::Edit { name, tags } => {
+        Action::Edit {
+            name,
+            tags,
+            description,
+        } => {
             let snippet = storage
                 .get(&name)
                 .with_context(|| format!("snippet '{}' not found", name))?;
@@ -282,7 +323,7 @@ fn main() -> Result<()> {
                 ));
             }
 
-            let content = if atty::is(atty::Stream::Stdin) {
+            let content = if std::io::stdin().is_terminal() {
                 open_editor(Some(&snippet.content), snippet.meta.ext.as_deref(), false)?
             } else {
                 let mut buf = String::new();
@@ -297,6 +338,7 @@ fn main() -> Result<()> {
             }
 
             let meta = SnippetMeta {
+                description,
                 modified_at: now_secs(),
                 tags: tags.unwrap_or(snippet.meta.tags),
                 ext: snippet.meta.ext,

@@ -4,6 +4,17 @@ All notable changes to sinbo will be documented here.
 
 ---
 
+## 1.2.1 - 2026-04-11
+
+### Added
+- Description field to snippet metadata
+
+### Fixed
+- Suppressed false-positive `RUSTSEC-2026-0097` advisory for `rand 0.8.5` (unsoundness does not affect sinbo's usage)
+
+### CI
+- Added `cargo audit` check to the pipeline
+
 ## 1.2.0 - 2026-04-10
 
 ### Added

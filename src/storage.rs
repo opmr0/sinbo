@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize)]
 pub struct SnippetMeta {
+    pub description: Option<String>,
     pub tags: Vec<String>,
     pub ext: Option<String>,
     pub modified_at: u64,
