@@ -2,7 +2,7 @@
 
 <br>
 
-# Sinbo
+# sinbo
 
 [![Crates.io](https://img.shields.io/crates/v/sinbo)](https://crates.io/crates/sinbo)
 [![Downloads](https://img.shields.io/crates/d/sinbo)](https://crates.io/crates/sinbo)
@@ -68,7 +68,7 @@ export EDITOR="subl --wait"   # Sublime  (--wait is required)
 
 ## Commands
 
-### `sinbo add <name>`
+### `sinbo add <n>`
 
 Add a new snippet. Opens `$EDITOR` if no input is piped.
 
@@ -89,7 +89,7 @@ echo "hello world" | sinbo add greeting   # read from stdin
 
 ---
 
-### `sinbo get <name>`
+### `sinbo get <n>`
 
 Print or copy a snippet. Prompts for a password if the snippet is encrypted.
 
@@ -107,7 +107,7 @@ sinbo get api-key            # prompts for password if encrypted
 
 ### `sinbo list`
 
-List all saved snippets. Encrypted snippets are shown with a `locked` indicator.
+List all saved snippets. Encrypted snippets are shown with a `Locked` indicator.
 
 ```bash
 sinbo list              # list all
@@ -124,7 +124,7 @@ sinbo list -s           # show content (encrypted snippets show [encrypted])
 
 ### `sinbo search <query>`
 
-Fuzzy search across snippet names and content. Results are ranked by relevance. Encrypted snippet content is not searched.
+Fuzzy search across snippet names and content. Encrypted snippet content is not searched.
 
 ```bash
 sinbo search "docker run"          # search all snippets
@@ -137,9 +137,9 @@ sinbo search "deploy" -t infra     # search within a tag
 
 ---
 
-### `sinbo edit <name>`
+### `sinbo edit <n>`
 
-Edit an existing snippet in `$EDITOR`. Preserves extension for syntax highlighting. Encrypted snippets cannot be edited , remove and re-add them.
+Edit an existing snippet in `$EDITOR`. Preserves extension for syntax highlighting. Encrypted snippets cannot be edited — remove and re-add them.
 
 ```bash
 sinbo edit rust-test
@@ -152,12 +152,32 @@ sinbo edit rust-test -t rust testing   # update tags while editing
 
 ---
 
-### `sinbo remove <name>`
+### `sinbo remove <n>`
 
-Delete a snippet.
+Delete a snippet. Prompts for confirmation.
 
 ```bash
 sinbo remove rust-test
+```
+
+---
+
+### `sinbo encrypt <n>`
+
+Encrypt an existing plaintext snippet. Prompts for a password twice. The plaintext file is removed after encryption.
+
+```bash
+sinbo encrypt api-key
+```
+
+---
+
+### `sinbo decrypt <n>`
+
+Permanently decrypt an encrypted snippet back to plaintext. Prompts for the password.
+
+```bash
+sinbo decrypt api-key
 ```
 
 ---
@@ -177,25 +197,22 @@ sinbo search "deploy" -t infra  # search within infra tag
 
 ## Encryption
 
-Sensitive snippets like API keys and tokens can be encrypted with `--encrypt`:
+Sensitive snippets like API keys and tokens can be encrypted at rest.
 
 ```bash
-sinbo add github-token --encrypt   # prompts for a password twice
-sinbo get github-token             # prompts for the password to decrypt
+sinbo add github-token --encrypt   # new encrypted snippet
+sinbo encrypt github-token         # encrypt an existing snippet
+sinbo decrypt github-token         # permanently decrypt
+sinbo get github-token             # prompts for password
 ```
 
-Encryption uses AES-256-GCM with Argon2id key derivation. The plaintext never touches disk, only the encrypted `.enc` file is stored. Encrypted snippets are listed normally but their content is never shown or searched.
-
-> Encrypted snippets cannot be edited. Remove and re-add them if you need to update the content.
+Encryption uses AES-256-GCM with Argon2id key derivation. The plaintext never touches disk, only the `.enc` file is stored. Encrypted snippets appear in `list` and `search` normally, but their content is never shown or searched.
 
 > [!WARNING]
-> sinbo encryption is designed to protect against casual filesystem access.
-> It is not a substitute for a dedicated secrets manager like Bitwarden
-> for high-value credentials.
+> sinbo encryption protects against casual filesystem access. It is not a substitute for a dedicated secrets manager like Bitwarden for high-value credentials.
 
 > [!WARNING]
-> `.enc` files are binary, do NOT open or edit them in a text editor.
-> Any modification, including saving without changes, will corrupt the file.
+> `.enc` files are binary. Do not open or edit them in a text editor, any modification will corrupt the file permanently.
 
 ---
 
@@ -206,7 +223,7 @@ Snippets are stored as plain files in your system config directory:
 - **Linux/macOS:** `~/.config/sinbo/snippets/`
 - **Windows:** `%APPDATA%\sinbo\snippets\`
 
-Each snippet has up to two files:
+Each snippet consists of up to two files:
 
 | File               | Contents                       |
 | ------------------ | ------------------------------ |
