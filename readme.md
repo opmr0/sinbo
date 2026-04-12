@@ -248,7 +248,6 @@ Snippets can be exported to `.sinbo.json` files and imported back.
 
 ```bash
 sinbo export docker-run                      # export to current directory
-sinbo export docker-run -p ~/backups         # export to a specific directory
 sinbo import ~/backups/docker-run.sinbo.json # import from file
 ```
 
