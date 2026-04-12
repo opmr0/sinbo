@@ -4,7 +4,7 @@
 
 If you discover a security vulnerability, **do not open a public issue**.
 
-Email: your@email.com
+Email: gqa0g6ur@anonaddy.me
 
 Include a description, steps to reproduce, and potential impact. I'll respond as soon as possible.
 
