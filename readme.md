@@ -257,14 +257,25 @@ If a name conflict is detected on import or export, sinbo will prompt you to ove
 
 ---
 
+## Piping
+
+Since `sinbo get` prints to stdout, snippets compose naturally with other tools:
+
+```bash
+sinbo get deploy-script | sh          # run a shell snippet
+sinbo get query | psql mydb           # pipe into psql
+sinbo get nginx-conf | sudo tee /etc/nginx/nginx.conf   # write to a file
+sinbo get docker-run --args port=8080 | sh   # substitute then run
+```
+
+---
+
 ## How It Works
 
 Snippets are stored as plain files in your system config directory:
 
 - **Linux/macOS:** `~/.config/sinbo/snippets/`
 - **Windows:** `%APPDATA%\sinbo\snippets\`
-
-Each snippet consists of up to two files:
 
 | File                | Contents                       |
 | ------------------- | ------------------------------ |
