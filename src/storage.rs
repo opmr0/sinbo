@@ -172,3 +172,111 @@ impl Storage {
         Ok(snippets)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tempfile::tempdir;
+
+    fn test_storage() -> (Storage, tempfile::TempDir) {
+        let dir = tempdir().unwrap();
+        let storage = Storage {
+            base_path: dir.path().to_path_buf(),
+        };
+        (storage, dir)
+    }
+
+    fn dummy_meta() -> SnippetMeta {
+        SnippetMeta {
+            description: None,
+            tags: vec![],
+            ext: None,
+            modified_at: 0,
+        }
+    }
+
+    #[test]
+    fn test_save_and_get() {
+        let (storage, _dir) = test_storage();
+        storage.save("test", "hello world", dummy_meta()).unwrap();
+        let snippet = storage.get("test").unwrap();
+        assert_eq!(snippet.content, "hello world");
+        assert_eq!(snippet.name, "test");
+        assert!(!snippet.encrypted);
+    }
+
+    #[test]
+    fn test_exists_returns_true_after_save() {
+        let (storage, _dir) = test_storage();
+        storage.save("test", "content", dummy_meta()).unwrap();
+        assert!(storage.exists("test"));
+    }
+
+    #[test]
+    fn test_exists_returns_false_for_missing() {
+        let (storage, _dir) = test_storage();
+        assert!(!storage.exists("nonexistent"));
+    }
+
+    #[test]
+    fn test_get_nonexistent_errors() {
+        let (storage, _dir) = test_storage();
+        assert!(storage.get("nonexistent").is_err());
+    }
+
+    #[test]
+    fn test_remove_deletes_snippet() {
+        let (storage, _dir) = test_storage();
+        storage.save("test", "content", dummy_meta()).unwrap();
+        storage.remove("test").unwrap();
+        assert!(!storage.exists("test"));
+    }
+
+    #[test]
+    fn test_remove_nonexistent_errors() {
+        let (storage, _dir) = test_storage();
+        assert!(storage.remove("nonexistent").is_err());
+    }
+
+    #[test]
+    fn test_list_returns_all_snippets() {
+        let (storage, _dir) = test_storage();
+        storage.save("a", "content a", dummy_meta()).unwrap();
+        storage.save("b", "content b", dummy_meta()).unwrap();
+        let snippets = storage.list(None).unwrap();
+        assert_eq!(snippets.len(), 2);
+    }
+
+    #[test]
+    fn test_list_filters_by_tag() {
+        let (storage, _dir) = test_storage();
+        let mut meta_tagged = dummy_meta();
+        meta_tagged.tags = vec!["docker".to_string()];
+        storage.save("a", "content", meta_tagged).unwrap();
+        storage.save("b", "content", dummy_meta()).unwrap();
+        let filter = vec!["docker".to_string()];
+        let snippets = storage.list(Some(&filter)).unwrap();
+        assert_eq!(snippets.len(), 1);
+        assert_eq!(snippets[0].name, "a");
+    }
+
+    #[test]
+    fn test_save_meta_persists_tags() {
+        let (storage, _dir) = test_storage();
+        let mut meta = dummy_meta();
+        meta.tags = vec!["rust".to_string(), "cli".to_string()];
+        storage.save("test", "content", meta).unwrap();
+        let snippet = storage.get("test").unwrap();
+        assert_eq!(snippet.meta.tags, vec!["rust", "cli"]);
+    }
+
+    #[test]
+    fn test_save_meta_persists_description() {
+        let (storage, _dir) = test_storage();
+        let mut meta = dummy_meta();
+        meta.description = Some("a test snippet".to_string());
+        storage.save("test", "content", meta).unwrap();
+        let snippet = storage.get("test").unwrap();
+        assert_eq!(snippet.meta.description, Some("a test snippet".to_string()));
+    }
+}

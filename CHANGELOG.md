@@ -4,6 +4,14 @@ All notable changes to sinbo will be documented here.
 
 ---
 
+## 1.4.0 - 2026-04-12
+
+### Added
+- Shell completions for bash, zsh, fish, and powershell (`sinbo completions <shell>`)
+- Dynamic snippet name completion on TAB for `get`, `remove`, `edit`, `encrypt`, `decrypt`, `export`
+- Hidden `list-names` command for shell completion scripts
+- Unit tests for `var.rs`, `storage.rs`, `encryption.rs`, and `main.rs`
+
 ## 1.3.0 - 2026-04-12
 
 ### Added

@@ -133,3 +133,63 @@ pub fn secure_delete(path: &Path) -> io::Result<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_encrypt_decrypt_roundtrip() {
+        let plaintext = b"hello secret world";
+        let password = b"strongpassword";
+        let encrypted = encrypt(plaintext, password);
+        let decrypted = decrypt(&encrypted, password).unwrap();
+        assert_eq!(decrypted, plaintext);
+    }
+
+    #[test]
+    fn test_wrong_password_fails() {
+        let plaintext = b"hello secret world";
+        let encrypted = encrypt(plaintext, b"correctpassword");
+        let result = decrypt(&encrypted, b"wrongpassword");
+        assert!(result.is_err());
+        assert!(matches!(
+            result.unwrap_err(),
+            EncryptionError::DecryptFailed
+        ));
+    }
+
+    #[test]
+    fn test_corrupted_data_fails() {
+        let result = decrypt(b"tooshort", b"password");
+        assert!(matches!(
+            result.unwrap_err(),
+            EncryptionError::CorruptedFile
+        ));
+    }
+
+    #[test]
+    fn test_empty_plaintext() {
+        let encrypted = encrypt(b"", b"password");
+        let decrypted = decrypt(&encrypted, b"password").unwrap();
+        assert_eq!(decrypted, b"");
+    }
+
+    #[test]
+    fn test_encrypt_produces_different_ciphertext_each_time() {
+        let plaintext = b"same content";
+        let password = b"password";
+        let enc1 = encrypt(plaintext, password);
+        let enc2 = encrypt(plaintext, password);
+        assert_ne!(enc1, enc2);
+    }
+
+    #[test]
+    fn test_secure_delete_removes_file() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("test.tmp");
+        std::fs::write(&path, b"sensitive data").unwrap();
+        secure_delete(&path).unwrap();
+        assert!(!path.exists());
+    }
+}

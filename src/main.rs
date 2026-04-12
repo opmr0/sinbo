@@ -27,6 +27,14 @@ struct Cli {
     action: Action,
 }
 
+#[derive(clap::ValueEnum, Clone)]
+pub enum CompletionShell {
+    Bash,
+    Zsh,
+    Fish,
+    Powershell,
+}
+
 #[derive(Subcommand)]
 enum Action {
     #[command(about = "Print or copy a snippet", alias = "g")]
@@ -96,6 +104,14 @@ enum Action {
     },
     #[command(about = "Import a snippet from a .sinbo.json file")]
     Import { path: std::path::PathBuf },
+    #[command(hide = true)]
+    ListNames,
+
+    #[command(about = "Generate shell completions")]
+    Completions {
+        #[arg(value_enum)]
+        shell: CompletionShell,
+    },
 }
 
 fn confirm() {
@@ -478,6 +494,18 @@ fn main() -> Result<()> {
         Action::Import { path } => {
             transfer::import(path, storage)?;
         }
+        Action::ListNames => {
+            let snippets = storage.list(None)?;
+            for s in snippets {
+                println!("{}", s.name);
+            }
+        }
+        Action::Completions { shell } => match shell {
+            CompletionShell::Bash => print!("{}", include_str!("completions/sinbo.bash")),
+            CompletionShell::Zsh => print!("{}", include_str!("completions/sinbo.zsh")),
+            CompletionShell::Fish => print!("{}", include_str!("completions/sinbo.fish")),
+            CompletionShell::Powershell => print!("{}", include_str!("completions/sinbo.ps1")),
+        },
     }
 
     Ok(())
@@ -494,4 +522,32 @@ fn parse_key_val(s: &str) -> Result<(String, String), String> {
     s.split_once('=')
         .map(|(k, v)| (k.to_string(), v.to_string()))
         .ok_or_else(|| format!("invalid key=value pair: '{}'", s))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_key_val_valid() {
+        let result = parse_key_val("port=8080").unwrap();
+        assert_eq!(result, ("port".to_string(), "8080".to_string()));
+    }
+
+    #[test]
+    fn test_parse_key_val_invalid() {
+        assert!(parse_key_val("noequalsign").is_err());
+    }
+
+    #[test]
+    fn test_parse_key_val_empty_value() {
+        let result = parse_key_val("key=").unwrap();
+        assert_eq!(result, ("key".to_string(), "".to_string()));
+    }
+
+    #[test]
+    fn test_parse_key_val_value_with_equals() {
+        let result = parse_key_val("url=http://x.com?a=1").unwrap();
+        assert_eq!(result, ("url".to_string(), "http://x.com?a=1".to_string()));
+    }
 }

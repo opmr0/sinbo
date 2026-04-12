@@ -270,6 +270,30 @@ sinbo get docker-run --args port=8080 | sh   # substitute then run
 
 ---
 
+## Shell Completions
+
+**bash**
+```bash
+echo 'eval "$(sinbo completions bash)"' >> ~/.bashrc && source ~/.bashrc
+```
+
+**zsh**
+```bash
+echo 'eval "$(sinbo completions zsh)"' >> ~/.zshrc && source ~/.zshrc
+```
+
+**fish**
+```bash
+sinbo completions fish > ~/.config/fish/completions/sinbo.fish
+```
+
+**powershell**
+```powershell
+Add-Content $PROFILE "`nsinbo completions powershell | Invoke-Expression"
+```
+
+---
+
 ## How It Works
 
 Snippets are stored as plain files in your system config directory:

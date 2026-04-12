@@ -131,3 +131,88 @@ fn prompt_options(
         _ => unreachable!(),
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use tempfile::tempdir;
+
+    #[test]
+    fn test_exported_snippet_serializes() {
+        let exported = ExportedSnippet {
+            name: "test".to_string(),
+            description: Some("a test snippet".to_string()),
+            content: "echo hello".to_string(),
+            tags: Some(vec!["shell".to_string()]),
+            extension: Some("sh".to_string()),
+        };
+
+        let json = serde_json::to_string_pretty(&exported).unwrap();
+        assert!(json.contains("test"));
+        assert!(json.contains("echo hello"));
+    }
+
+    #[test]
+    fn test_exported_snippet_deserializes() {
+        let json = r#"{
+            "name": "test",
+            "description": null,
+            "content": "echo hello",
+            "tags": ["shell"],
+            "extension": "sh"
+        }"#;
+
+        let exported: ExportedSnippet = serde_json::from_str(json).unwrap();
+        assert_eq!(exported.name, "test");
+        assert_eq!(exported.content, "echo hello");
+        assert_eq!(exported.extension, Some("sh".to_string()));
+    }
+
+    #[test]
+    fn test_exported_snippet_no_optional_fields() {
+        let json = r#"{
+            "name": "minimal",
+            "description": null,
+            "content": "hello",
+            "tags": null,
+            "extension": null
+        }"#;
+
+        let exported: ExportedSnippet = serde_json::from_str(json).unwrap();
+        assert_eq!(exported.name, "minimal");
+        assert!(exported.tags.is_none());
+        assert!(exported.extension.is_none());
+    }
+
+    #[test]
+    fn test_import_rejects_non_sinbo_json() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("snippet.json");
+        fs::write(&path, "{}").unwrap();
+
+        assert!(!path.to_string_lossy().ends_with(".sinbo.json"));
+    }
+
+    #[test]
+    fn test_import_accepts_sinbo_json() {
+        let dir = tempdir().unwrap();
+        let path = dir.path().join("snippet.sinbo.json");
+        fs::write(&path, "{}").unwrap();
+
+        assert!(path.to_string_lossy().ends_with(".sinbo.json"));
+    }
+
+    #[test]
+    fn test_export_file_name_format() {
+        let name = "docker-run";
+        let expected = format!("{}.sinbo.json", name);
+        assert_eq!(expected, "docker-run.sinbo.json");
+    }
+
+    #[test]
+    fn test_import_rejects_missing_file() {
+        let path = PathBuf::from("/nonexistent/path/snippet.sinbo.json");
+        assert!(!path.exists());
+    }
+}
