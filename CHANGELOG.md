@@ -4,6 +4,15 @@ All notable changes to sinbo will be documented here.
 
 ---
 
+## 1.3.0 - 2026-04-12
+
+### Added
+- Variable substitution system with `SINBO:name:` placeholder syntax
+- `--args key=value` flag on `get` for placeholder substitution
+- `export` command — export snippets to `.sinbo.json` files
+- `import` command — import snippets from `.sinbo.json` files
+- Conflict resolution prompt on import/export name collision
+
 ## 1.2.1 - 2026-04-11
 
 ### Added

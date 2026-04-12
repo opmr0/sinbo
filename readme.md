@@ -1,3 +1,5 @@
+<div align=right>Table of Contents↗️</div>
+
 <img src="./assets/logo_no_bg.png" alt="sinbo logo" width="100"/>
 
 <br>
@@ -81,6 +83,7 @@ sinbo add rust-test -e rs                  # open editor with .rs syntax
 sinbo add center-div -f style.css          # read from file
 sinbo add docker-run -t docker infra       # add with tags
 sinbo add api-key --encrypt                # encrypt with a password
+sinbo get docker-run --args port=8080 name=myapp   # substitute placeholders
 echo "hello world" | sinbo add greeting   # read from stdin
 ```
 
@@ -90,6 +93,7 @@ echo "hello world" | sinbo add greeting   # read from stdin
 | `--file-name`   | `-f`  | Read content from a file               |
 | `--tags`        | `-t`  | Tag the snippet                        |
 | `--description` | `-d`  | Add a description to the snippet       |
+| `--args`        |       | Substitute placeholders (`key=value`)  |
 | `--encrypt`     |       | Encrypt the snippet with a password    |
 
 ---
@@ -221,6 +225,39 @@ Encryption uses AES-256-GCM with Argon2id key derivation. The plaintext never to
 
 ---
 
+## Variables
+
+Snippets can contain placeholders using the `SINBO:name:` syntax.
+
+```bash
+# snippet content:
+docker run -p SINBO:port: -it SINBO:name:
+
+# usage:
+sinbo get docker-run --args port=8080 name=myapp
+# output: docker run -p 8080 -it myapp
+```
+
+If a placeholder has no matching `--args` value, it is left as-is in the output.
+
+---
+
+## Export / Import
+
+Snippets can be exported to `.sinbo.json` files and imported back.
+
+```bash
+sinbo export docker-run                      # export to current directory
+sinbo export docker-run -p ~/backups         # export to a specific directory
+sinbo import ~/backups/docker-run.sinbo.json # import from file
+```
+
+Encrypted snippets cannot be exported, decrypt them first.
+
+If a name conflict is detected on import or export, sinbo will prompt you to overwrite or rename.
+
+---
+
 ## How It Works
 
 Snippets are stored as plain files in your system config directory:
@@ -230,11 +267,12 @@ Snippets are stored as plain files in your system config directory:
 
 Each snippet consists of up to two files:
 
-| File               | Contents                       |
-| ------------------ | ------------------------------ |
-| `{name}.code`      | Plaintext snippet content      |
-| `{name}.enc`       | Encrypted snippet content      |
-| `{name}.meta.json` | Tags, extension, and timestamp |
+| File                | Contents                       |
+| ------------------- | ------------------------------ |
+| `{name}.code`       | Plaintext snippet content      |
+| `{name}.enc`        | Encrypted snippet content      |
+| `{name}.meta.json`  | Tags, extension, and timestamp |
+| `{name}.sinbo.json` | Exported snippet file          |
 
 Plain `.code` files are grep-able, copyable, and easy to back up directly.
 

@@ -1,6 +1,7 @@
 use std::{
     env, fs,
     io::{self, IsTerminal, Read},
+    path::PathBuf,
     process::Command,
 };
 
@@ -13,6 +14,8 @@ use fuzzy_matcher::skim::SkimMatcherV2;
 
 mod encryption;
 mod storage;
+mod transfer;
+mod var;
 
 use crate::storage::SnippetMeta;
 use storage::Storage;
@@ -31,31 +34,33 @@ enum Action {
         name: String,
         #[arg(short, long, help = "Copy to clipboard instead of printing")]
         copy: bool,
+        #[arg(long, value_parser = parse_key_val, help = "Substitute placeholders (key=value)")]
+        args: Vec<(String, String)>,
     },
     #[command(about = "Add a new snippet", alias = "a")]
     Add {
         name: String,
         #[arg(long, short, num_args = 1, help = "Read content from a file")]
         file_name: Option<String>,
-        #[arg(short, long, num_args = 1.., help = "Tags for the snippet")]
+        #[arg(short, long, num_args = 1.., help = "Assign tags to the snippet")]
         tags: Option<Vec<String>>,
         #[arg(
             short,
             long,
             num_args = 1,
-            help = "File extension for syntax highlighting in editor"
+            help = "File extension for editor syntax highlighting"
         )]
         ext: Option<String>,
-        #[arg(long, help = "Encrypt the snippet (prompted for password)")]
+        #[arg(long, help = "Encrypt the snippet with a password")]
         encrypt: bool,
-        #[arg(long, short, num_args = 1, help = "Add a description to metadata")]
+        #[arg(long, short, num_args = 1, help = "Short description for the snippet")]
         description: Option<String>,
     },
     #[command(about = "List all snippets", alias = "l")]
     List {
-        #[arg(short, long, num_args = 1.., help = "Filter by tags")]
+        #[arg(short, long, num_args = 1.., help = "Filter snippets by tag")]
         tags: Option<Vec<String>>,
-        #[arg(short, long, help = "Show the snippets content")]
+        #[arg(short, long, help = "Show snippet content")]
         show: bool,
     },
     #[command(about = "Remove a snippet", alias = "r")]
@@ -63,22 +68,34 @@ enum Action {
     #[command(about = "Edit an existing snippet", alias = "e")]
     Edit {
         name: String,
-        #[arg(short, long, num_args = 1.., help = "Update tags")]
+        #[arg(short, long, num_args = 1.., help = "Replace the snippet's tags")]
         tags: Option<Vec<String>>,
-        #[arg(long, short, num_args = 1, help = "Add a description to metadata")]
+        #[arg(long, short, num_args = 1, help = "Update the snippet's description")]
         description: Option<String>,
     },
-    #[command(about = "Search a query in snippets", alias = "s")]
+    #[command(about = "Search snippets by name or content", alias = "s")]
     Search {
-        #[arg(short, long, num_args = 1.., help = "search in tags")]
+        #[arg(short, long, num_args = 1.., help = "Narrow search to specific tags")]
         tags: Option<Vec<String>>,
         query: String,
     },
     #[command(about = "Encrypt an existing snippet")]
     Encrypt { name: String },
-
     #[command(about = "Decrypt a snippet permanently")]
     Decrypt { name: String },
+    #[command(about = "Export a snippet to a .sinbo.json file")]
+    Export {
+        name: String,
+        #[arg(
+            short,
+            long,
+            num_args = 1,
+            help = "Directory to export into (default: current dir)"
+        )]
+        path: Option<PathBuf>,
+    },
+    #[command(about = "Import a snippet from a .sinbo.json file")]
+    Import { path: std::path::PathBuf },
 }
 
 fn confirm() {
@@ -144,10 +161,10 @@ fn main() -> Result<()> {
     let storage = Storage::new();
 
     match args.action {
-        Action::Get { name, copy } => {
+        Action::Get { name, copy, args } => {
             let snippet = storage.get(&name)?;
 
-            let content = if snippet.encrypted {
+            let mut content = if snippet.encrypted {
                 let password = encryption::prompt_password("Password: ")?;
                 let enc_path = storage.snippet_path(&name).with_extension("enc");
                 let bytes = encryption::read_encrypted(&enc_path, password.as_bytes())
@@ -156,6 +173,11 @@ fn main() -> Result<()> {
             } else {
                 snippet.content
             };
+
+            if !args.is_empty() {
+                let map: std::collections::HashMap<String, String> = args.into_iter().collect();
+                content = var::substitute(&content, &map)?;
+            }
 
             if copy {
                 let mut clipboard = arboard::Clipboard::new()?;
@@ -449,6 +471,13 @@ fn main() -> Result<()> {
 
             eprintln!("{} decrypted '{}'", "sinbo".cyan().bold(), name.yellow());
         }
+        Action::Export { name, path } => {
+            let snippet = storage.get(&name)?;
+            transfer::export(&snippet, path)?;
+        }
+        Action::Import { path } => {
+            transfer::import(path, storage)?;
+        }
     }
 
     Ok(())
@@ -459,4 +488,10 @@ fn now_secs() -> u64 {
         .duration_since(std::time::UNIX_EPOCH)
         .unwrap()
         .as_secs()
+}
+
+fn parse_key_val(s: &str) -> Result<(String, String), String> {
+    s.split_once('=')
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .ok_or_else(|| format!("invalid key=value pair: '{}'", s))
 }

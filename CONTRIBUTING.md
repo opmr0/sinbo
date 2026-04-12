@@ -1,6 +1,6 @@
 # Contributing
 
-Contributions are welcome — bug fixes, new features, or doc improvements.
+Contributions are welcome, bug fixes, new features, or doc improvements.
 
 If you're planning something large, [open an issue](https://github.com/opmr0/sinbo/issues) first so we can discuss it before you invest the time.
 
