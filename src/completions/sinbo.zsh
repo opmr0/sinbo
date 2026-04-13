@@ -26,12 +26,15 @@ _sinbo() {
                 'decrypt:Decrypt a snippet'
                 'export:Export a snippet'
                 'import:Import a snippet'
+                'copy:Copy a snippet to clipboard'
+                'c:Copy a snippet to clipboard'
+                'rename:Rename a snippet'
                 'completions:Generate shell completions'
             )
             _describe 'subcommand' subcommands ;;
         args)
             case $words[2] in
-                get|g|remove|r|edit|e|encrypt|decrypt|export)
+                get|g|remove|r|edit|e|encrypt|decrypt|export|copy|c|rename)
                     local snippets=(${(f)"$(sinbo list-names 2>/dev/null)"})
                     _describe 'snippet' snippets ;;
             esac ;;

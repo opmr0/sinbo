@@ -42,7 +42,13 @@ enum Action {
         name: String,
         #[arg(short, long, help = "Copy to clipboard instead of printing")]
         copy: bool,
-        #[arg(long, value_parser = parse_key_val, help = "Substitute placeholders (key=value)")]
+        #[arg(long,short, value_parser = parse_key_val, help = "Substitute placeholders (key=value)")]
+        args: Vec<(String, String)>,
+    },
+    #[command(about = "Copy a snippet to clipboard", alias = "c")]
+    Copy {
+        name: String,
+        #[arg(long, short = 'a', value_parser = parse_key_val, help = "Substitute placeholders (key=value)")]
         args: Vec<(String, String)>,
     },
     #[command(about = "Add a new snippet", alias = "a")]
@@ -70,6 +76,8 @@ enum Action {
         tags: Option<Vec<String>>,
         #[arg(short, long, help = "Show snippet content")]
         show: bool,
+        #[arg(short, long, help = "Preview first 25 characters of snippet content")]
+        peek: bool,
     },
     #[command(about = "Remove a snippet", alias = "r")]
     Remove { name: String },
@@ -106,12 +114,13 @@ enum Action {
     Import { path: std::path::PathBuf },
     #[command(hide = true)]
     ListNames,
-
     #[command(about = "Generate shell completions")]
     Completions {
         #[arg(value_enum)]
         shell: CompletionShell,
     },
+    #[command(about = "Rename a snippets")]
+    Rename { old_name: String, new_name: String },
 }
 
 fn confirm() {
@@ -172,23 +181,27 @@ fn open_editor(
     Ok(content)
 }
 
+fn get_content(storage: &Storage, name: &str) -> Result<String> {
+    let snippet = storage.get(name)?;
+    if snippet.encrypted {
+        let password = encryption::prompt_password("Password: ")?;
+        let enc_path = storage.snippet_path(name).with_extension("enc");
+        let bytes = encryption::read_encrypted(&enc_path, password.as_bytes())
+            .map_err(|e| anyhow!("{}", e))?;
+        String::from_utf8(bytes).context("decrypted content is not valid utf-8")
+    } else {
+        Ok(snippet.content)
+    }
+}
+
 fn main() -> Result<()> {
+    human_panic::setup_panic!();
     let args = Cli::parse();
     let storage = Storage::new();
 
     match args.action {
         Action::Get { name, copy, args } => {
-            let snippet = storage.get(&name)?;
-
-            let mut content = if snippet.encrypted {
-                let password = encryption::prompt_password("Password: ")?;
-                let enc_path = storage.snippet_path(&name).with_extension("enc");
-                let bytes = encryption::read_encrypted(&enc_path, password.as_bytes())
-                    .map_err(|e| anyhow!("{}", e))?;
-                String::from_utf8(bytes).context("decrypted content is not valid utf-8")?
-            } else {
-                snippet.content
-            };
+            let mut content = get_content(&storage, &name)?;
 
             if !args.is_empty() {
                 let map: std::collections::HashMap<String, String> = args.into_iter().collect();
@@ -206,6 +219,22 @@ fn main() -> Result<()> {
             } else {
                 print!("{}", content);
             }
+        }
+        Action::Copy { name, args } => {
+            let mut content = get_content(&storage, &name)?;
+
+            if !args.is_empty() {
+                let map: std::collections::HashMap<String, String> = args.into_iter().collect();
+                content = var::substitute(&content, &map)?;
+            }
+
+            let mut clipboard = arboard::Clipboard::new()?;
+            clipboard.set_text(&content)?;
+            eprintln!(
+                "{} copied '{}' to clipboard",
+                "sinbo".cyan().bold(),
+                name.yellow()
+            );
         }
         Action::Add {
             name,
@@ -267,7 +296,7 @@ fn main() -> Result<()> {
             storage.save(&name, &content, meta)?;
             eprintln!("{} saved '{}'", "sinbo".cyan().bold(), name.yellow());
         }
-        Action::List { tags, show } => {
+        Action::List { tags, show, peek } => {
             let snippets = storage.list(tags.as_ref())?;
 
             if snippets.is_empty() {
@@ -330,11 +359,22 @@ fn main() -> Result<()> {
                     end
                 );
 
-                if show {
+                if show || peek {
                     if s.encrypted {
                         println!("> {}", "[encrypted]".dimmed());
                     } else {
-                        println!("> {}", s.content.dimmed());
+                        let content = if show {
+                            s.content.clone()
+                        } else if peek {
+                            if s.content.chars().count() > 25 {
+                                format!("{}...", s.content.chars().take(25).collect::<String>())
+                            } else {
+                                s.content.chars().take(25).collect::<String>()
+                            }
+                        } else {
+                            s.content.clone()
+                        };
+                        println!("> {}\n", content.dimmed());
                     }
                 }
             }
@@ -506,6 +546,22 @@ fn main() -> Result<()> {
             CompletionShell::Fish => print!("{}", include_str!("completions/sinbo.fish")),
             CompletionShell::Powershell => print!("{}", include_str!("completions/sinbo.ps1")),
         },
+        Action::Rename { old_name, new_name } => {
+            if !storage.exists(&old_name) {
+                return Err(anyhow!("snippet '{}' doesn't exists", old_name));
+            }
+            if storage.exists(&new_name) {
+                return Err(anyhow!("snippet '{}' already exists", new_name));
+            }
+            fs::rename(
+                storage.snippet_path(&old_name).with_extension("code"),
+                storage.snippet_path(&new_name).with_extension("code"),
+            )?;
+            fs::rename(
+                storage.snippet_path(&old_name).with_extension("meta.json"),
+                storage.snippet_path(&new_name).with_extension("meta.json"),
+            )?;
+        }
     }
 
     Ok(())

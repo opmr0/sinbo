@@ -4,6 +4,15 @@ All notable changes to sinbo will be documented here.
 
 ---
 
+## 1.5.0 - 2026-04-13
+
+### Added
+- `rename <old> <new>` command to rename snippets
+- `--peek` / `-p` flag on `list` to preview first 30 characters of snippet content
+- `-a` short flag for `--args` on `get`
+- `copy <snippet>` / `c <snippet>` command to copy a snippet
+- add `human_panic`
+
 ## 1.4.0 - 2026-04-12
 
 ### Added

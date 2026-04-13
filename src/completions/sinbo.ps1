@@ -4,9 +4,9 @@ Register-ArgumentCompleter -Native -CommandName sinbo -ScriptBlock {
     $words = $commandAst.CommandElements
     $count = $words.Count
 
-    $subcommands = @('get','g','add','a','list','l','remove','r','edit','e','search','s','encrypt','decrypt','export','import','completions')
+    $subcommands = @('get','g','add','a','list','l','remove','r','edit','e','search','s','encrypt','decrypt','export','import','copy','c','rename','completions')
 
-    $snippetCommands = @('get','g','remove','r','edit','e','encrypt','decrypt','export')
+    $snippetCommands = @('get','g','remove','r','edit','e','encrypt','decrypt','export','copy','c','rename')
 
     if ($count -eq 1 -or ($count -eq 2 -and $wordToComplete -ne '')) {
         $subcommands | Where-Object { $_ -like "$wordToComplete*" } | ForEach-Object {

@@ -44,8 +44,10 @@ src/
   main.rs        # CLI parsing and command dispatch
   storage.rs     # Snippet storage and retrieval
   encryption.rs  # AES-256-GCM encryption and Argon2id key derivation
+  transfer.rs    # Export and import via .sinbo.json
+  var.rs         # Variable substitution with SINBO:name: placeholders
+  completions/   # Shell completion scripts (bash, zsh, fish, powershell)
 ```
-
 ---
 
 ## Reporting Bugs

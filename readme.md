@@ -1,10 +1,9 @@
-<div align=right>Table of Contents↗️</div>
-
-<img src="./assets/logo_no_bg.png" alt="sinbo logo" width="100"/>
-
-<br>
-
-# sinbo
+<table>
+<tr>
+<td><img src="./assets/logo_no_bg.png" alt="sinbo logo" width="100"/></td>
+<td><h1>Sinbo</h1><p>Store code once, retrieve it anywhere.</p></td>
+</tr>
+</table>
 
 [![Crates.io](https://img.shields.io/crates/v/sinbo)](https://crates.io/crates/sinbo)
 [![Downloads](https://img.shields.io/crates/d/sinbo)](https://crates.io/crates/sinbo)
@@ -14,11 +13,46 @@
 
 **sinbo is a CLI snippet manager. Store code once, retrieve it anywhere.**
 
+## ToC
+
+<details>
+<summary>Click to expand</summary>
+
+- [Demo](#demo)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Setup](#setup)
+- [Commands](#commands)
+  - [add](#sinbo-add-n)
+  - [get](#sinbo-get-n)
+  - [copy](#sinbo-copy-n)
+  - [list](#sinbo-list)
+  - [search](#sinbo-search-query)
+  - [edit](#sinbo-edit-n)
+  - [rename](#sinbo-rename-old-new)
+  - [remove](#sinbo-remove-n)
+  - [encrypt](#sinbo-encrypt-n)
+  - [decrypt](#sinbo-decrypt-n)
+  - [export](#sinbo-export-n)
+  - [import](#sinbo-import)
+- [Tags](#tags)
+- [Encryption](#encryption)
+- [Variables](#variables)
+- [Export / Import](#export--import)
+- [Piping](#piping)
+- [Shell Completions](#shell-completions)
+- [How It Works](#how-it-works)
+- [License](#license)
+
+</details>
+
 ---
 
 ## demo
 
 ![demo](assets/demo.gif)
+
+---
 
 ## Installation
 
@@ -47,7 +81,7 @@ cargo install sinbo
 ```bash
 sinbo add rust-test -e rs        # open editor, save as a Rust snippet
 sinbo get rust-test              # print the snippet
-sinbo get rust-test --copy       # copy to clipboard
+sinbo copy rust-test             # copy to clipboard
 sinbo list                       # list all snippets
 sinbo search "hello"             # fuzzy search across all snippets
 ```
@@ -79,11 +113,10 @@ export EDITOR="subl --wait"   # Sublime  (--wait is required)
 Add a new snippet. Opens `$EDITOR` if no input is piped.
 
 ```bash
-sinbo add rust-test -e rs                  # open editor with .rs syntax
-sinbo add center-div -f style.css          # read from file
-sinbo add docker-run -t docker infra       # add with tags
-sinbo add api-key --encrypt                # encrypt with a password
-sinbo get docker-run --args port=8080 name=myapp   # substitute placeholders
+sinbo add rust-test -e rs              # open editor with .rs syntax
+sinbo add center-div -f style.css      # read from file
+sinbo add docker-run -t docker infra   # add with tags
+sinbo add api-key --encrypt            # encrypt with a password
 echo "hello world" | sinbo add greeting   # read from stdin
 ```
 
@@ -93,24 +126,39 @@ echo "hello world" | sinbo add greeting   # read from stdin
 | `--file-name`   | `-f`  | Read content from a file               |
 | `--tags`        | `-t`  | Tag the snippet                        |
 | `--description` | `-d`  | Add a description to the snippet       |
-| `--args`        |       | Substitute placeholders (`key=value`)  |
 | `--encrypt`     |       | Encrypt the snippet with a password    |
 
 ---
 
 ### `sinbo get <n>`
 
-Print or copy a snippet. Prompts for a password if the snippet is encrypted.
+Print a snippet to stdout. Prompts for a password if the snippet is encrypted.
 
 ```bash
-sinbo get rust-test          # print to stdout
-sinbo get rust-test --copy   # copy to clipboard
-sinbo get api-key            # prompts for password if encrypted
+sinbo get rust-test                            # print to stdout
+sinbo get docker-run -a port=8080 name=myapp   # substitute placeholders
+sinbo get api-key                              # prompts for password if encrypted
 ```
 
-| Flag     | Short | Description       |
-| -------- | ----- | ----------------- |
-| `--copy` | `-c`  | Copy to clipboard |
+| Flag     | Short | Description                           |
+| -------- | ----- | ------------------------------------- |
+| `--args` | `-a`  | Substitute placeholders (`key=value`) |
+| `--copy` | `-c`  | Copy to clipboard                     |
+
+---
+
+### `sinbo copy <n>`
+
+Copy a snippet to clipboard. Prompts for a password if the snippet is encrypted.
+
+```bash
+sinbo copy rust-test                            # copy to clipboard
+sinbo copy docker-run -a port=8080 name=myapp   # substitute then copy
+```
+
+| Flag     | Short | Description                           |
+| -------- | ----- | ------------------------------------- |
+| `--args` | `-a`  | Substitute placeholders (`key=value`) |
 
 ---
 
@@ -121,13 +169,15 @@ List all saved snippets. Encrypted snippets are shown with a `Locked` indicator.
 ```bash
 sinbo list              # list all
 sinbo list -t docker    # filter by tag
-sinbo list -s           # show content (encrypted snippets show [encrypted])
+sinbo list -s           # show full content
+sinbo list -p           # preview first 30 characters
 ```
 
-| Flag     | Short | Description          |
-| -------- | ----- | -------------------- |
-| `--tags` | `-t`  | Filter by tags       |
-| `--show` | `-s`  | Show snippet content |
+| Flag     | Short | Description                            |
+| -------- | ----- | -------------------------------------- |
+| `--tags` | `-t`  | Filter by tags                         |
+| `--show` | `-s`  | Show full snippet content              |
+| `--peek` | `-p`  | Preview first 30 characters of content |
 
 ---
 
@@ -155,9 +205,20 @@ sinbo edit rust-test
 sinbo edit rust-test -t rust testing   # update tags while editing
 ```
 
-| Flag     | Short | Description |
-| -------- | ----- | ----------- |
-| `--tags` | `-t`  | Update tags |
+| Flag            | Short | Description        |
+| --------------- | ----- | ------------------ |
+| `--tags`        | `-t`  | Update tags        |
+| `--description` | `-d`  | Update description |
+
+---
+
+### `sinbo rename <old> <new>`
+
+Rename an existing snippet.
+
+```bash
+sinbo rename old-name new-name
+```
 
 ---
 
@@ -234,11 +295,11 @@ Snippets can contain placeholders using the `SINBO:name:` syntax.
 docker run -p SINBO:port: -it SINBO:name:
 
 # usage:
-sinbo get docker-run --args port=8080 name=myapp
+sinbo get docker-run -a port=8080 name=myapp
 # output: docker run -p 8080 -it myapp
 ```
 
-If a placeholder has no matching `--args` value, it is left as-is in the output.
+If a placeholder has no matching `-a` value, it is left as-is in the output.
 
 ---
 
@@ -247,13 +308,12 @@ If a placeholder has no matching `--args` value, it is left as-is in the output.
 Snippets can be exported to `.sinbo.json` files and imported back.
 
 ```bash
-sinbo export docker-run                      # export to current directory
-sinbo import ~/backups/docker-run.sinbo.json # import from file
+sinbo export docker-run                          # export to current directory
+sinbo export docker-run -p ~/backups             # export to a specific directory
+sinbo import ~/backups/docker-run.sinbo.json     # import from file
 ```
 
-Encrypted snippets cannot be exported, decrypt them first.
-
-If a name conflict is detected on import or export, sinbo will prompt you to overwrite or rename.
+Encrypted snippets cannot be exported, decrypt them first. If a name conflict is detected on import or export, sinbo will prompt you to overwrite or rename.
 
 ---
 
@@ -262,10 +322,10 @@ If a name conflict is detected on import or export, sinbo will prompt you to ove
 Since `sinbo get` prints to stdout, snippets compose naturally with other tools:
 
 ```bash
-sinbo get deploy-script | sh          # run a shell snippet
-sinbo get query | psql mydb           # pipe into psql
+sinbo get deploy-script | sh                        # run a shell snippet
+sinbo get query | psql mydb                         # pipe into psql
 sinbo get nginx-conf | sudo tee /etc/nginx/nginx.conf   # write to a file
-sinbo get docker-run --args port=8080 | sh   # substitute then run
+sinbo get docker-run -a port=8080 | sh              # substitute then run
 ```
 
 ---
@@ -273,21 +333,25 @@ sinbo get docker-run --args port=8080 | sh   # substitute then run
 ## Shell Completions
 
 **bash**
+
 ```bash
 echo 'eval "$(sinbo completions bash)"' >> ~/.bashrc && source ~/.bashrc
 ```
 
 **zsh**
+
 ```bash
 echo 'eval "$(sinbo completions zsh)"' >> ~/.zshrc && source ~/.zshrc
 ```
 
 **fish**
+
 ```bash
 sinbo completions fish > ~/.config/fish/completions/sinbo.fish
 ```
 
 **powershell**
+
 ```powershell
 Add-Content $PROFILE "`nsinbo completions powershell | Invoke-Expression"
 ```
@@ -301,12 +365,11 @@ Snippets are stored as plain files in your system config directory:
 - **Linux/macOS:** `~/.config/sinbo/snippets/`
 - **Windows:** `%APPDATA%\sinbo\snippets\`
 
-| File                | Contents                       |
-| ------------------- | ------------------------------ |
-| `{name}.code`       | Plaintext snippet content      |
-| `{name}.enc`        | Encrypted snippet content      |
-| `{name}.meta.json`  | Tags, extension, and timestamp |
-| `{name}.sinbo.json` | Exported snippet file          |
+| File               | Contents                       |
+| ------------------ | ------------------------------ |
+| `{name}.code`      | Plaintext snippet content      |
+| `{name}.enc`       | Encrypted snippet content      |
+| `{name}.meta.json` | Tags, extension, and timestamp |
 
 Plain `.code` files are grep-able, copyable, and easy to back up directly.
 
