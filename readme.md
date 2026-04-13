@@ -1,4 +1,4 @@
-<table>
+<table border="0" cellspacing="0" cellpadding="10">
 <tr>
 <td><img src="./assets/logo_no_bg.png" alt="sinbo logo" width="100"/></td>
 <td><h1>Sinbo</h1><p>Store code once, retrieve it anywhere.</p></td>
