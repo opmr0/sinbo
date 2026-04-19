@@ -1,7 +1,7 @@
 <table border="0" cellspacing="0" cellpadding="10">
 <tr>
 <td><img src="./assets/logo_no_bg.png" alt="sinbo logo" width="100"/></td>
-<td><h1>Sinbo</h1><p>Store code once, retrieve it anywhere.</p></td>
+<td><h1>sinbo</h1><p>Store code once, retrieve it anywhere.</p></td>
 </tr>
 </table>
 
@@ -33,14 +33,13 @@
   - [remove](#sinbo-remove-n)
   - [encrypt](#sinbo-encrypt-n)
   - [decrypt](#sinbo-decrypt-n)
-  - [export](#sinbo-export-n)
-  - [import](#sinbo-import)
 - [Tags](#tags)
 - [Encryption](#encryption)
 - [Variables](#variables)
 - [Export / Import](#export--import)
 - [Piping](#piping)
 - [Shell Completions](#shell-completions)
+- [Editor Integration](#editor-integration)
 - [How It Works](#how-it-works)
 - [License](#license)
 
@@ -48,7 +47,7 @@
 
 ---
 
-## demo
+## Demo
 
 ![demo](assets/demo.gif)
 
@@ -170,7 +169,7 @@ List all saved snippets. Encrypted snippets are shown with a `Locked` indicator.
 sinbo list              # list all
 sinbo list -t docker    # filter by tag
 sinbo list -s           # show full content
-sinbo list -p           # preview first 30 characters
+sinbo list -p           # preview first 25 characters
 ```
 
 | Flag     | Short | Description                            |
@@ -299,7 +298,16 @@ sinbo get docker-run -a port=8080 name=myapp
 # output: docker run -p 8080 -it myapp
 ```
 
-If a placeholder has no matching `-a` value, it is left as-is in the output.
+Fallback values are supported, if no `-a` value is provided the fallback is used:
+
+```bash
+# snippet content:
+docker run -p SINBO:port:8080: -it SINBO:name:myapp:
+
+# usage without args:
+sinbo get docker-run
+# output: docker run -p 8080 -it myapp
+```
 
 ---
 
@@ -322,10 +330,10 @@ Encrypted snippets cannot be exported, decrypt them first. If a name conflict is
 Since `sinbo get` prints to stdout, snippets compose naturally with other tools:
 
 ```bash
-sinbo get deploy-script | sh                        # run a shell snippet
-sinbo get query | psql mydb                         # pipe into psql
-sinbo get nginx-conf | sudo tee /etc/nginx/nginx.conf   # write to a file
-sinbo get docker-run -a port=8080 | sh              # substitute then run
+sinbo get deploy-script | sh                             # run a shell snippet
+sinbo get query | psql mydb                              # pipe into psql
+sinbo get nginx-conf | sudo tee /etc/nginx/nginx.conf    # write to a file
+sinbo get docker-run -a port=8080 | sh                   # substitute then run
 ```
 
 ---
@@ -355,6 +363,14 @@ sinbo completions fish > ~/.config/fish/completions/sinbo.fish
 ```powershell
 Add-Content $PROFILE "`nsinbo completions powershell | Invoke-Expression"
 ```
+
+---
+
+## Editor Integration
+
+sinbo-lsp provides inline snippet completions in any editor. Type `sinbo:` to get a completion list of all your saved snippets, selecting one inserts the full content.
+
+See [sinbo-lsp/README.md](sinbo-lsp/README.md) for installation and editor setup.
 
 ---
 

@@ -47,7 +47,18 @@ src/
   transfer.rs    # Export and import via .sinbo.json
   var.rs         # Variable substitution with SINBO:name: placeholders
   completions/   # Shell completion scripts (bash, zsh, fish, powershell)
+
+sinbo-lsp/
+  src/
+    main.rs      # LSP server implementation
+  Cargo.toml
+
+sinbo-lsp-vscode/
+  extension.js   # VS Code extension
+  package.json
+  README.md
 ```
+
 ---
 
 ## Reporting Bugs

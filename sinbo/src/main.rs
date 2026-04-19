@@ -203,10 +203,8 @@ fn main() -> Result<()> {
         Action::Get { name, copy, args } => {
             let mut content = get_content(&storage, &name)?;
 
-            if !args.is_empty() {
-                let map: std::collections::HashMap<String, String> = args.into_iter().collect();
-                content = var::substitute(&content, &map)?;
-            }
+            let map: std::collections::HashMap<String, String> = args.into_iter().collect();
+            content = var::substitute(&content, &map)?;
 
             if copy {
                 let mut clipboard = arboard::Clipboard::new()?;

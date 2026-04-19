@@ -1,0 +1,54 @@
+{
+    "name": "sinbo-lsp",
+    "displayName": "sinbo",
+    "description": "Snippet completions for sinbo",
+    "version": "0.1.0",
+    "publisher": "opmr0",
+    "license": "MIT",
+    "icon": "logo_no_bg.png",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/opmr0/sinbo"
+    },
+    "engines": {
+        "vscode": "^1.75.0"
+    },
+    "categories": [
+        "Other",
+        "Snippets"
+    ],
+    "keywords": [
+        "sinbo",
+        "snippet",
+        "manager",
+        "completion"
+    ],
+    "activationEvents": [
+        "onStartupFinished"
+    ],
+    "main": "./extension.js",
+    "contributes": {
+        "commands": [
+            {
+                "command": "sinbo.restart",
+                "title": "sinbo: Restart LSP Server"
+            }
+        ],
+        "configuration": {
+            "title": "sinbo",
+            "properties": {
+                "sinbo.enable": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Enable sinbo snippet completions"
+                }
+            }
+        }
+    },
+    "dependencies": {
+        "vscode-languageclient": "^9.0.1"
+    },
+    "devDependencies": {
+        "@types/vscode": "^1.75.0"
+    }
+}

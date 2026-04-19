@@ -4,6 +4,15 @@ All notable changes to sinbo will be documented here.
 
 ---
 
+## 1.6.0 - 2026-04-19
+
+### Added
+- `sinbo-lsp` — LSP server for inline snippet completions in any editor
+- VS Code extension with `sinbo:` trigger
+- Variable fallback values with `SINBO:name:fallback:` syntax
+- `.vsix` included in GitHub releases
+- CI builds `sinbo-lsp` binaries for all platforms
+
 ## 1.5.0 - 2026-04-13
 
 ### Added
