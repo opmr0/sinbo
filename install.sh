@@ -27,7 +27,7 @@ esac
 
 echo "Installing sinbo for $OS ($ARCH)..."
 
-LATEST=$(curl -s https://api.github.com/repos/opmr0/sinbo/releases/latest | grep '"tag_name"' | head -1 | cut -d '"' -f 4)
+LATEST=$(curl -s https://api.github.com/repos/sinbo-cli/sinbo/releases/latest | grep '"tag_name"' | head -1 | cut -d '"' -f 4)
 
 if [ -z "$LATEST" ]; then
     echo "Failed to fetch latest release"
@@ -35,7 +35,7 @@ if [ -z "$LATEST" ]; then
 fi
 
 echo "Downloading $LATEST..."
-curl -L -o /tmp/sinbo "https://github.com/opmr0/sinbo/releases/download/$LATEST/$BINARY"
+curl -L -o /tmp/sinbo "https://github.com/sinbo-cli/sinbo/releases/download/$LATEST/$BINARY"
 chmod +x /tmp/sinbo
 
 echo "Installing to /usr/local/bin (may require sudo)..."

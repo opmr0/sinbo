@@ -7,12 +7,12 @@ try {
     $webClient = New-Object System.Net.WebClient
     $webClient.Headers.Add("User-Agent", "PowerShell")
 
-    $apiResponse = $webClient.DownloadString("https://api.github.com/repos/opmr0/sinbo/releases/latest")
+    $apiResponse = $webClient.DownloadString("https://api.github.com/repos/sinbo-cli/sinbo/releases/latest")
     $version = ($apiResponse | ConvertFrom-Json).tag_name
 
     if (-not $version) { throw "Failed to fetch latest release version" }
 
-    $downloadUrl = "https://github.com/opmr0/sinbo/releases/download/$version/sinbo-windows-x86_64.exe"
+    $downloadUrl = "https://github.com/sinbo-cli/sinbo/releases/download/$version/sinbo-windows-x86_64.exe"
     $tempFile = Join-Path $env:TEMP "sinbo.exe"
 
     Write-Host "Downloading $version..." -ForegroundColor Cyan
@@ -43,7 +43,7 @@ try {
     Write-Host "Installation failed: $_" -ForegroundColor Red
     Write-Host ""
     Write-Host "Manual installation:" -ForegroundColor Yellow
-    Write-Host "1. Go to: https://github.com/opmr0/sinbo/releases/latest" -ForegroundColor Yellow
+    Write-Host "1. Go to: https://github.com/sinbo-cli/sinbo/releases/latest" -ForegroundColor Yellow
     Write-Host "2. Download: sinbo-windows-x86_64.exe" -ForegroundColor Yellow
     Write-Host "3. Rename to sinbo.exe and move to a folder in your PATH" -ForegroundColor Yellow
     exit 1
