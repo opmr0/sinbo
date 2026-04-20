@@ -1,4 +1,4 @@
-<table border="0" cellspacing="0" cellpadding="10">
+<table>
 <tr>
 <td><img src="./assets/logo_no_bg.png" alt="sinbo logo" width="100"/></td>
 <td><h1>sinbo</h1><p>Store code once, retrieve it anywhere.</p></td>
@@ -8,7 +8,7 @@
 [![Crates.io](https://img.shields.io/crates/v/sinbo)](https://crates.io/crates/sinbo)
 [![Downloads](https://img.shields.io/crates/d/sinbo)](https://crates.io/crates/sinbo)
 [![License](https://img.shields.io/crates/l/sinbo)](LICENSE)
-[![Build](https://github.com/opmr0/sinbo/actions/workflows/release.yml/badge.svg)](https://github.com/opmr0/sinbo/actions)
+[![Build](https://github.com/sinbo-cli/sinbo/actions/workflows/release.yml/badge.svg)](https://github.com/sinbo-cli/sinbo/actions)
 [![Rust](https://img.shields.io/badge/rust-stable-orange)](https://www.rust-lang.org)
 
 **sinbo is a CLI snippet manager. Store code once, retrieve it anywhere.**
@@ -58,13 +58,13 @@
 **macOS / Linux**
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/opmr0/sinbo/main/install.sh | sh
+curl -sSf https://raw.githubusercontent.com/sinbo-cli/sinbo/main/install.sh | sh
 ```
 
 **Windows**
 
 ```powershell
-iwr https://raw.githubusercontent.com/opmr0/sinbo/main/install.ps1 -UseBasicParsing | iex
+iwr https://raw.githubusercontent.com/sinbo-cli/sinbo/main/install.ps1 -UseBasicParsing | iex
 ```
 
 **Via cargo**

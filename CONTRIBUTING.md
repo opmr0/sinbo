@@ -2,14 +2,14 @@
 
 Contributions are welcome, bug fixes, new features, or doc improvements.
 
-If you're planning something large, [open an issue](https://github.com/opmr0/sinbo/issues) first so we can discuss it before you invest the time.
+If you're planning something large, [open an issue](https://github.com/sinbo-cli/sinbo/issues) first so we can discuss it before you invest the time.
 
 ---
 
 ## Getting Started
 
 ```bash
-git clone https://github.com/opmr0/sinbo
+git clone https://github.com/sinbo-cli/sinbo
 cd sinbo
 cargo build
 cargo test

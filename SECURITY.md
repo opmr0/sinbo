@@ -17,7 +17,7 @@ Only the latest version of sinbo receives security fixes.
 The install script at `install.sh` and `install.ps1` should always be reviewed before piping to a shell. You can inspect them directly:
 
 ```bash
-curl -sSf https://raw.githubusercontent.com/opmr0/sinbo/main/install.sh | less
+curl -sSf https://raw.githubusercontent.com/sinbo-cli/sinbo/main/install.sh | less
 ```
 
 ## Scope
