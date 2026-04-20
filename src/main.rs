@@ -444,7 +444,7 @@ fn main() -> Result<()> {
                 })
                 .collect();
 
-            results.sort_by(|a, b| b.0.cmp(&a.0));
+            results.sort_by_key(|b| std::cmp::Reverse(b.0));
 
             if results.is_empty() {
                 eprintln!("{} no matches found", "sinbo".cyan().bold());

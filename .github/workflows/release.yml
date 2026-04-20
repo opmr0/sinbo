@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   build:
-    name: build ${{ matrix.binary }} ${{ matrix.target }}
+    name: build ${{ matrix.target }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -18,45 +18,25 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             binary: sinbo
-            artifact: sinbo-linux-x86_64
+            asset_name: sinbo-linux-x86_64
 
           - os: macos-latest
             target: x86_64-apple-darwin
             binary: sinbo
-            artifact: sinbo-macos-x86_64
+            asset_name: sinbo-macos-x86_64
 
           - os: macos-latest
             target: aarch64-apple-darwin
             binary: sinbo
-            artifact: sinbo-macos-aarch64
+            asset_name: sinbo-macos-aarch64
 
           - os: windows-latest
             target: x86_64-pc-windows-msvc
-            binary: sinbo
-            artifact: sinbo-windows-x86_64
-
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            binary: sinbo-lsp
-            artifact: sinbo-lsp-linux-x86_64
-
-          - os: macos-latest
-            target: x86_64-apple-darwin
-            binary: sinbo-lsp
-            artifact: sinbo-lsp-macos-x86_64
-
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            binary: sinbo-lsp
-            artifact: sinbo-lsp-macos-aarch64
-
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            binary: sinbo-lsp
-            artifact: sinbo-lsp-windows-x86_64
+            binary: sinbo.exe
+            asset_name: sinbo-windows-x86_64.exe
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Install Rust
         uses: actions-rust-lang/setup-rust-toolchain@v1
@@ -65,33 +45,21 @@ jobs:
           target: ${{ matrix.target }}
 
       - name: Build
-        run: cargo build --release --target ${{ matrix.target }} --manifest-path ${{ matrix.binary }}/Cargo.toml
+        run: cargo build --release --target ${{ matrix.target }}
 
-      - name: Package (Linux/macOS)
+      - name: Rename binary (Linux/macOS)
         if: matrix.os != 'windows-latest'
-        run: |
-          cp ${{ matrix.binary }}/target/${{ matrix.target }}/release/${{ matrix.binary }} ${{ matrix.artifact }}
-          tar czf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}
+        run: cp target/${{ matrix.target }}/release/${{ matrix.binary }} ${{ matrix.asset_name }}
 
-      - name: Package (Windows)
+      - name: Rename binary (Windows)
         if: matrix.os == 'windows-latest'
-        run: |
-          Copy-Item ${{ matrix.binary }}/target/${{ matrix.target }}/release/${{ matrix.binary }}.exe ${{ matrix.artifact }}.exe
-          Compress-Archive -Path ${{ matrix.artifact }}.exe -DestinationPath ${{ matrix.artifact }}.zip
+        run: Copy-Item target/${{ matrix.target }}/release/${{ matrix.binary }} ${{ matrix.asset_name }}
 
-      - name: Upload artifact (Linux/macOS)
-        if: matrix.os != 'windows-latest'
-        uses: actions/upload-artifact@v4
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
         with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.tar.gz
-
-      - name: Upload artifact (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.artifact }}
-          path: ${{ matrix.artifact }}.zip
+          name: ${{ matrix.asset_name }}
+          path: ${{ matrix.asset_name }}
 
   release:
     needs: build
@@ -99,21 +67,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Download artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           path: artifacts
           merge-multiple: true
-      
-      - name: Build VS Code extension
-        run: |
-          cd sinbo-lsp-vscode
-          npm install
-          npm install -g @vscode/vsce
-          vsce package --no-dependencies
-          cp sinbo-lsp-*.vsix ../artifacts/
 
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2

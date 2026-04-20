@@ -366,6 +366,8 @@ Add-Content $PROFILE "`nsinbo completions powershell | Invoke-Expression"
 
 ---
 
+<!--
+
 ## Editor Integration
 
 sinbo-lsp provides inline snippet completions in any editor. Type `sinbo:` to get a completion list of all your saved snippets, selecting one inserts the full content.
@@ -373,6 +375,8 @@ sinbo-lsp provides inline snippet completions in any editor. Type `sinbo:` to ge
 See [sinbo-lsp/README.md](sinbo-lsp/README.md) for installation and editor setup.
 
 ---
+
+-->
 
 ## How It Works
 
